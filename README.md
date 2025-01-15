@@ -15,7 +15,7 @@ This repository is planned to be a store for a number of Dafny models. A purpose
 
 <p></p>
 
-<p><b>References</b> </p>
+## References
 
 [1]: Leslie Lamport. The part-time parliament. ACM transactions on Computer Systems, 16(2):133-169, May 1998
 
