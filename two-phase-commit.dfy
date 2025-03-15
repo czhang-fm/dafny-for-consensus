@@ -1,20 +1,20 @@
 /* This is new model in Dafny for the very simple Two-Phase commmit protocol
  * The model is translated from the TLA model, A.1 and A.2, in the 2004 paxos-acp paper 
- * which consists of a set of resource managers (RMs) that have coordinated update, satisfying
+ * which consists of a set of resource managers (RMs) that make coordinated update, satisfying
  * the following properties: 
  *
- * Stability: Once an RM has entered the committed or aborted state, it remains in that state forever.
+ * Stability: Once an RM has entered the "committed" state or the "aborted" state, it remains in that state forever.
  * Consistency: It is impossible for one RM to be in the committed state and another to be in the aborted state.
- * A distinguished transaction manager (TM) process coordinates a decision-making procedure.
+ * A distinguished transaction manager (TM) process coordinates the decision-making procedure.
  *
  * The communication model is asynchronous: 
  *  i.e., messages cannot get lost, but there is not a time limit for message delivery
  *
- * Simplifications in the model:
+ * Simplifications in this model from what's described in the paper:
  * -- No abort message is sent by an RM when it decides to abort (as it cannot be distinguished from a silent-fail)
- * -- No modelling message loss (as it cannot be distinguished from being ignored by the receiver)
+ * -- No modelling of message loss (as it cannot be distinguished from being ignored by the receiver)
  *
- * In this type of modelling, we define states and transitions in the form of predicates.
+ * In this type of modelling, we define states and transitions by using predicates.
  * We only prove the safety condition (Consistency) which is the last lemma in the model.
  */
 
@@ -23,11 +23,11 @@ datatype RMState = Working | Prepared | Committed | Aborted
 const RM: set<ResourceManager>
 datatype TMState = Init | TCommitted | TAborted
 datatype RMessage = Pair(s: RMState, rm: ResourceManager) 
-//type TMessage = TMState // Here we reuse the TMState values for the messages sent out from the TM
+//type TMessage = TMState // Here we reuse the TMState values for the messages sent out by the TM
 
 // Each RM has 4 states, with the following 4 transition patterns:
 // Working --> Prepared; Working --> Aborted; Prepared --(TCommited)--> Committed; Prepared --(TAborted)--> Aborted.
-// Note that if an RM is in the Prepared state, it can perform the last two transitions only after receiving messages from the TM.
+// Note that if an RM is in the Prepared state, it can perform the last two transitions only after receiving a message from the TM.
 
 // The Transaction Manager (TM) has three states, with the following 2 transition patterns
 // Init --> Abort; Init --(RM-Prepared)--> TCommmitted
