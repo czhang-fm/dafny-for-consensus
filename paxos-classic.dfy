@@ -61,7 +61,7 @@ datatype TSState = TSState(
     // states of acceptors
     acceptor_state: map<Acceptor, AState>,  
     // states of leaders
-    leader_state: map<Acceptor, LState>,  
+    //leader_state: map<Acceptor, LState>,  
     // counting the response of the form <highest_bal, bal, value, acc> from any acceptor message in step 1b
     // where the domain of the map is the leaders
     promise_count: map<Acceptor, set<Acceptor>>,    
@@ -79,7 +79,7 @@ ghost predicate type_ok(s: TSState){
     && s.leader_ballot.Keys == s.leader_propose.Keys == s.leader_decision.Keys 
         == s.promise_count.Keys == s.decision_count.Keys == leaders
     && s.acceptor_state.Keys == acceptors
-    && s.leader_state.Keys == leaders
+    //&& s.leader_state.Keys == leaders
     //&& forall n :: n in leaders ==> (forall v :: v in s.ballot_count[n].Keys ==> v >= -1)
 }
 // define what a valid state is in a Paxos run
@@ -99,7 +99,7 @@ ghost predicate init(s: TSState)
     && (forall n :: n in leaders ==> s.leader_decision[n] == 0)
     && (forall n :: n in leaders ==> s.decision_count[n] == {})
     && (forall a :: a in acceptors ==> s.acceptor_state[a] == AState(-1, 0))
-    && (forall n :: n in leaders ==> s.leader_state[n] == LState(-1, 0))
+    //&& (forall n :: n in leaders ==> s.leader_state[n] == LState(-1, 0))
     && (forall n :: n in leaders ==> s.promise_count[n] == {})
     && (forall n :: n in leaders ==> s.decision_count[n] == {})
     && s.pmsgs == {} && s.cmsgs == {}
@@ -120,7 +120,7 @@ predicate choose_ballot(s: TSState, s': TSState, c: Acceptor)
     && s'.leader_propose == s.leader_propose
     && s'.leader_decision == s.leader_decision
     && s'.acceptor_state == s.acceptor_state
-    && s'.leader_state == s.leader_state
+    //&& s'.leader_state == s.leader_state
     && s'.promise_count == s.promise_count
     && s'.decision_count == s.decision_count
 }
@@ -154,13 +154,17 @@ ghost predicate receive_response_1b(s: TSState, s': TSState, c: Acceptor, a: Acc
 {
     && PMsg(bn, highest, value, a) in s.pmsgs && s.leader_ballot[c] == bn
     && (
-      || (value != 0 && s'.leader_state == s.leader_state[c:= LState(s.leader_state[c].ballot, value)])
-      || (value == 0 && s'.leader_state == s.leader_state)
+      || (value != 0 && s'.leader_propose == s.leader_propose[c:= value]) // the force case: the acceptor has already confirmed a value
+      || (value == 0 && s'.leader_propose == s.leader_propose)
     )
+//    && (
+//      || (value != 0 && s'.leader_state == s.leader_state[c:= LState(s.leader_state[c].ballot, value)])
+//      || (value == 0 && s'.leader_state == s.leader_state)
+//    )
     && s'.promise_count == s.promise_count[c:= s.promise_count[c]+{a}]
     // all the other state components remain the same
     && s'.leader_ballot == s.leader_ballot
-    && s'.leader_propose == s.leader_propose
+    //&& s'.leader_propose == s.leader_propose
     && s'.leader_decision == s.leader_decision
     && s'.ballot == s.ballot
     && s'.acceptor_state == s.acceptor_state
