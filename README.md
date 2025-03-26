@@ -1,6 +1,6 @@
 # Dafny models for consensus protocol
 ## Introduction
-This repository is planned to be a store for a number of Dafny models. A purpose of this repostory is to be the home of a few example models for the COSC437 "_verification of security protocols_" lectured at the university of Canterbury. This also serves a initial feasibility study for verification of larger scaled and more complex protocols, such as those currently adopted in the Blockchain communities (Tendermint, algorand, and Ethereum-SSF, to name a few).
+This repository is planned to be a store for a number of Dafny models. A purpose of this repostory is to be the home of a few example models for the COSC437 "_verification of security protocols_" lectured at the university of Canterbury. This also serves a initial feasibility study for verification of larger scaled and more complex protocols, such as those currently adopted in the Blockchain communities (Tendermint, Algorand, and Ethereum-SSF, to name a few).
 
 ## List of models
 <p> <b>A very simple Two-Phase commmit protocol</b> This model is translated from the TLA model, A.1 and A.2, in the 2004 paxos-acp paper [3] which consists of a set of resource managers (RMs) that have coordinated update, satisfying the following properties: </p>
