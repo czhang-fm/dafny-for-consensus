@@ -113,29 +113,30 @@ ghost predicate init(s: TSState)
 predicate choose_ballot(s: TSState, s': TSState, c: Acceptor)
   requires type_ok(s) && type_ok(s') && valid(s) && c in leaders
 {
-    && s.leader_ballot[c] == -1 // leader n was inactive
+    && s.leader_ballot[c] == -1 // leader n did not chose any ballot before
     && s'.leader_ballot == s.leader_ballot[c:= s.ballot] // n is now associated with a ballot
     && s'.ballot == s.ballot + 1
     // all the other state components remain the same
     && s'.leader_propose == s.leader_propose
     && s'.leader_decision == s.leader_decision
     && s'.acceptor_state == s.acceptor_state
-    //&& s'.leader_state == s.leader_state
     && s'.promise_count == s.promise_count
     && s'.decision_count == s.decision_count
 }
-// Step 1b: an acceptor may receive message 1a from a leader (coordinator) sometime later
-// In this case, the ballot number is higher than the acceptor's highest recorded ballot.
+// Step 1b: an acceptor may receive a ballot number sent from a leader (coordinator) sometime later
+// In this case, if the ballot number is higher than the acceptor's highest recorded ballot, it will make a promise.
+// Otherwise, the acceptor will not do anything.
 // There are two possibilities here: 
-// (1) the acceptor has not yet confirmed any value; 
-// (2) the acceptor has already confirmed some value previously
+// (1) the acceptor has not yet confirmed any value; the acceptor will make a promise on that ballot number.
+// (2) the acceptor has already confirmed some value previously; the acceptor will reply with a non-zero value that is previously confirmed for another ballot
 predicate receive_higher_ballot(s: TSState, s': TSState, c: Acceptor, a: Acceptor)
   requires type_ok(s) && type_ok(s') && valid(s) && c in leaders && a in acceptors
 {
     && s.leader_ballot[c] != -1 // leader n already has a ballot
     && s.acceptor_state[a].highest < s.leader_ballot[c] // acceptor a has not yet promised a ballot >= c's ballot
     // acceptor a promises with a message that contains c's ballot number
-    && s'.pmsgs == s.pmsgs + {PMsg(s.leader_ballot[c], s.acceptor_state[a].highest, s.acceptor_state[a].value, a)}
+    // in this case, the second value being -1 means that the acceptor has not yet confirmed any ballot
+    && s'.pmsgs == s.pmsgs + {PMsg(s.leader_ballot[c], s.acceptor_state[a].highest, s.acceptor_state[a].value, a)} 
     // acceptor a updates its highest (ballot, value) pair received so far --- 
     && s'.acceptor_state == s.acceptor_state[a := AState(s.leader_ballot[c], s.acceptor_state[a].value)]
     // all the other state components remain the same
@@ -148,7 +149,7 @@ predicate receive_higher_ballot(s: TSState, s': TSState, c: Acceptor, a: Accepto
     && s'.decision_count == s.decision_count
 }
 
-// Before step 2a: message received by a leader (copied from pmsg)
+// Before step 2a: message 1b received by a leader (copied from pmsg)
 ghost predicate receive_response_1b(s: TSState, s': TSState, c: Acceptor, a: Acceptor, bn: int, highest: int, value: Proposal)
   requires type_ok(s) && type_ok(s') && valid(s) && c in leaders && a in acceptors
 {
@@ -164,7 +165,6 @@ ghost predicate receive_response_1b(s: TSState, s': TSState, c: Acceptor, a: Acc
     && s'.promise_count == s.promise_count[c:= s.promise_count[c]+{a}]
     // all the other state components remain the same
     && s'.leader_ballot == s.leader_ballot
-    //&& s'.leader_propose == s.leader_propose
     && s'.leader_decision == s.leader_decision
     && s'.ballot == s.ballot
     && s'.acceptor_state == s.acceptor_state
@@ -173,22 +173,81 @@ ghost predicate receive_response_1b(s: TSState, s': TSState, c: Acceptor, a: Acc
     && s'.cmsgs == s.cmsgs
 }
 
-// Step 2a, scenario 1: if a leader with a ballot number bn has collected at least F+1 empty counts
+// Step 2a, scenario 1: if a leader with a ballot number bn has collected at least F+1 promise counts, 
+// it will propose a new value to all acceptors by updating leader_propose
+ghost predicate propose_value_2a(s: TSState, s': TSState, c: Acceptor, value: Proposal)
+  requires type_ok(s) && type_ok(s') && valid(s) && c in leaders && value != 0
+{
+    && |s.promise_count[c]| >= F+1
+    && s.leader_propose[c] == 0
+    && s'.leader_propose == s.leader_propose[c:= value]
+    // all the other state components remain the same
+    && s'.leader_ballot == s.leader_ballot
+    && s'.leader_decision == s.leader_decision
+    && s'.ballot == s.ballot
+    && s'.acceptor_state == s.acceptor_state
+    && s'.promise_count == s.promise_count
+    && s'.decision_count == s.decision_count
+    && s'.pmsgs == s.pmsgs
+    && s'.cmsgs == s.cmsgs
+}
 
-
-// Step 2a, scenario 2: if a leader with a ballot number bn has collected at least F+1 ballot counts
+// Step 2a, scenario 2: if a leader with a ballot number bn has received a message 1b that contains some previous confirmed value
+// the leader will propose the same value (the force case). 
+// We do not need to define a new predicate for this behaviour as it is already encoded in the "receive_response_1b" predicate
 
 
 // Step 2b, an acceptor replies with an cmsg if it receives a value with a large enough ballot number 
-
+ghost predicate confirm_ballot_2b(s: TSState, s': TSState, c: Acceptor, a: Acceptor, bn: int, highest: int, value: Proposal)
+  requires type_ok(s) && type_ok(s') && valid(s) && c in leaders && a in acceptors && value != 0
+{
+    && s.leader_ballot[c] == s.acceptor_state[a].highest
+    && s.leader_propose[c] == value
+    && s'.acceptor_state == s.acceptor_state[a := AState(s.leader_ballot[c], value)]
+    && s'.cmsgs == s.cmsgs + {CMsg(s.leader_ballot[c], value, a)}
+    // all the other state components remain the same
+    && s'.leader_ballot == s.leader_ballot
+    && s'.leader_propose == s.leader_propose
+    && s'.leader_decision == s.leader_decision
+    && s'.ballot == s.ballot
+    && s'.promise_count == s.promise_count
+    && s'.decision_count == s.decision_count
+    && s'.pmsgs == s.pmsgs
+}
 
 // Before step 3a: message received by a leader (copied from cmsg)
-
+ghost predicate receive_confirm_2b(s: TSState, s': TSState, c: Acceptor, a: Acceptor, bn: int, value: Proposal)
+  requires type_ok(s) && type_ok(s') && valid(s) && c in leaders && a in acceptors && value != 0
+{
+    && CMsg(bn, value, a) in s.cmsgs && s.leader_ballot[c] == bn
+    && s'.decision_count == s.decision_count[c:= s.decision_count[c]+{a}]
+    // all the other state components remain the same
+    && s'.acceptor_state == s.acceptor_state
+    && s'.leader_ballot == s.leader_ballot
+    && s'.leader_propose == s.leader_propose
+    && s'.leader_decision == s.leader_decision
+    && s'.ballot == s.ballot
+    && s'.promise_count == s.promise_count
+    && s'.pmsgs == s.pmsgs
+    && s'.cmsgs == s.cmsgs
+}
 
 // Step 3a, a leader with a ballot number bn has collected at least F+1 decision counts
-
-
-
+ghost predicate leader_decide(s: TSState, s': TSState, c: Acceptor, value: Proposal)
+  requires type_ok(s) && type_ok(s') && valid(s) && c in leaders && value != 0
+{
+    && |s.decision_count[c]| >= F+1 && s.leader_decision[c] == 0 && s.leader_propose[c] == value
+    && s'.leader_decision == s.leader_decision[c := value]
+    // all the other state components remain the same
+    && s'.acceptor_state == s.acceptor_state
+    && s'.leader_ballot == s.leader_ballot
+    && s'.leader_propose == s.leader_propose
+    && s'.ballot == s.ballot
+    && s'.promise_count == s.promise_count
+    && s'.decision_count == s.decision_count
+    && s'.pmsgs == s.pmsgs
+    && s'.cmsgs == s.cmsgs
+}
 
 /* Why do we have consistency for Paxos? Intuitively, it could be understood in the following way.
    If there is a ballot bn that is observed as having been decided with value v, then
