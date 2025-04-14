@@ -19,7 +19,7 @@
  * A participant may become faulty, as long as the total number of faulty node is less than half of the total number of nodes.
  * The total number of nodes is known to everyone.
  * 
- * Simplifications in the model:
+ * Simplification and abstractions made in the model:
  * -- We assume that an coordinator picks a ballot when it becomes active (this event is atomic)
  * -- The ballot number to be selected is ever increasing, starting from 0; This implies every coordinator's ballot number is unique/distinct
  * -- Each time a ballot is picked, such information is broadcast to every acceptor
@@ -34,7 +34,7 @@
  */
 
 type Acceptor(==)  // a set of acceptors (nodes)
-type Proposal = int //nat  // the value that is proposed by some leader, 0 by default, but 0 is not considered a valid decision.
+type Proposal = int // the value that is proposed by some leader, 0 by default, but 0 is not considered a valid decision.
 const acceptors: set<Acceptor>
 const leaders: set<Acceptor>
 //const ballots: set<int>
@@ -45,11 +45,9 @@ lemma{:axiom} Quorum()
 
 // an internal state of an acceptor: the highest ballot so far and its associated value 
 datatype AState = AState(highest: int, value: Proposal) 
-// an internal state of a leader: its ballot and its value to be proposed
-datatype LState = LState(ballot: int, value: Proposal)
-// the message type from an acceptor in step 1b
+// the message type from an acceptor in step 1b --- Promising
 datatype PMsg = PMsg(ballot: int, highest: int, value: Proposal, acc: Acceptor)
-// the message type from an acceptor in step 2b
+// the message type from an acceptor in step 2b --- Confirming
 datatype CMsg = CMsg(ballot: int, value: Proposal, acc: Acceptor)
 
 // a global state of a Paxos protocol run
@@ -60,13 +58,13 @@ datatype TSState = TSState(
     ballot: int,  // initially 0
     // states of acceptors
     acceptor_state: map<Acceptor, AState>,  
-    // states of leaders
-    //leader_state: map<Acceptor, LState>,  
+    // states of leaders are already encoded in the first three maps
+
     // counting the response of the form <highest_bal, bal, value, acc> from any acceptor message in step 1b
-    // where the domain of the map is the leaders
+    // where the domain of the map is the set of leaders
     promise_count: map<Acceptor, set<Acceptor>>,    
-    // counting response from acceptors <bal, val, acceptor> in step 2b, where the domain of the map is the leaders
-    // Here, different leaders making same decision is possible, but this should not affect the checking of consistency/safety.
+    // counting response from acceptors <bal, val, acceptor> in step 2b, where the domain of the map is the set of leaders
+    // Here, different leaders making same decision is possible, but this should not affect consistency/safety.
     decision_count: map<Acceptor, set<Acceptor>>,
     // the set of messages sent by acceptors in step 1b
     pmsgs: set<PMsg>,
@@ -99,7 +97,6 @@ ghost predicate init(s: TSState)
     && (forall n :: n in leaders ==> s.leader_decision[n] == 0)
     && (forall n :: n in leaders ==> s.decision_count[n] == {})
     && (forall a :: a in acceptors ==> s.acceptor_state[a] == AState(-1, 0))
-    //&& (forall n :: n in leaders ==> s.leader_state[n] == LState(-1, 0))
     && (forall n :: n in leaders ==> s.promise_count[n] == {})
     && (forall n :: n in leaders ==> s.decision_count[n] == {})
     && s.pmsgs == {} && s.cmsgs == {}
@@ -113,7 +110,7 @@ ghost predicate init(s: TSState)
 predicate choose_ballot(s: TSState, s': TSState, c: Acceptor)
   requires type_ok(s) && type_ok(s') && valid(s) && c in leaders
 {
-    && s.leader_ballot[c] == -1 // leader n did not chose any ballot before
+    && s.leader_ballot[c] == -1 // leader n has not chosed any ballot before
     && s'.leader_ballot == s.leader_ballot[c:= s.ballot] // n is now associated with a ballot
     && s'.ballot == s.ballot + 1
     // all the other state components remain the same
@@ -126,8 +123,8 @@ predicate choose_ballot(s: TSState, s': TSState, c: Acceptor)
 // Step 1b: an acceptor may receive a ballot number sent from a leader (coordinator) sometime later
 // In this case, if the ballot number is higher than the acceptor's highest recorded ballot, it will make a promise.
 // Otherwise, the acceptor will not do anything.
-// There are two possibilities here: 
-// (1) the acceptor has not yet confirmed any value; the acceptor will make a promise on that ballot number.
+// There are two possible cases here: 
+// (1) the acceptor has not yet confirmed any value (if acceptor_state[a].highest == -1); the acceptor will make a promise on that ballot number.
 // (2) the acceptor has already confirmed some value previously; the acceptor will reply with a non-zero value that is previously confirmed for another ballot
 predicate receive_higher_ballot(s: TSState, s': TSState, c: Acceptor, a: Acceptor)
   requires type_ok(s) && type_ok(s') && valid(s) && c in leaders && a in acceptors
