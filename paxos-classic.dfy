@@ -246,6 +246,12 @@ ghost predicate leader_decide(s: TSState, s': TSState, c: Acceptor, value: Propo
     && s'.cmsgs == s.cmsgs
 }
 
+lemma consistency(s: TSState, c1: Acceptor, c2: Acceptor)
+  requires type_ok(s)
+  requires c1 in leaders && c2 in leaders && (s.leader_decision[c1] != 0) && (s.leader_decision[c2] != 0)
+  ensures s.leader_decision[c1] == s.leader_decision[c2]
+{}
+
 /* Why do we have consistency for Paxos? Intuitively, it could be understood in the following way.
    If there is a ballot bn that is observed as having been decided with value v, then
    (1) there must be at least F + 1 acceptors promised in Step 1b that they will only reply to a ballot number greater than or equal to bn, and
