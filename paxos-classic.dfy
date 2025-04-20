@@ -77,19 +77,24 @@ ghost predicate type_ok(s: TSState){
     && s.leader_ballot.Keys == s.leader_propose.Keys == s.leader_decision.Keys 
         == s.promise_count.Keys == s.decision_count.Keys == leaders
     && s.acceptor_state.Keys == acceptors
-    //&& s.leader_state.Keys == leaders
     //&& forall n :: n in leaders ==> (forall v :: v in s.ballot_count[n].Keys ==> v >= -1)
 }
 // define what a valid state is in a Paxos run
 // we may also add invariants into this predicate later
-ghost predicate valid(s: TSState){
-    true
+ghost predicate valid(s: TSState)
+  requires type_ok(s)
+{
+    //&& forall n :: n in leaders ==> (s.leader_propose[n] != 0 ==> 
+    //  (|| (exists m :: m in leaders && m != n && s.leader_propose[m] == s.leader_propose[n])
+    //   || |s.promise_count[n]| >= F+1 ))
+    //&& forall n, m :: n in leaders && m in leaders && s.leader_propose[n] != 0 && s.leader_propose[m] != 0 ==> s.leader_propose[n] == s.leader_propose[m] 
+   && (forall n :: n in leaders ==> (s.leader_decision[n] != 0) ==> (|s.decision_count[n]| >= F+1)) 
+   && (forall n :: n in leaders ==> (s.leader_decision[n] != 0) ==> (s.leader_propose[n] == s.leader_decision[n]))
 }
 
 // the initial state when a protocol round starts
 ghost predicate init(s: TSState)
   requires type_ok(s)
-  ensures type_ok(s) && valid(s)
 {
     && s.ballot == 0
     && (forall n :: n in leaders ==> s.leader_ballot[n] == -1)
@@ -101,6 +106,10 @@ ghost predicate init(s: TSState)
     && (forall n :: n in leaders ==> s.decision_count[n] == {})
     && s.pmsgs == {} && s.cmsgs == {}
 }
+lemma Inv_init(s: TSState)
+  requires type_ok(s) && init(s)
+  ensures valid(s)
+{}
 
 // In the following we define a transition relation for each step following the Paxos protocol.
 //
@@ -119,6 +128,12 @@ predicate choose_ballot(s: TSState, s': TSState, c: Acceptor)
     && s'.acceptor_state == s.acceptor_state
     && s'.promise_count == s.promise_count
     && s'.decision_count == s.decision_count
+}
+lemma Inv_choose_ballot(s: TSState, s': TSState, c: Acceptor)
+  requires type_ok(s) && type_ok(s') && valid(s) && c in leaders && choose_ballot(s, s', c)
+  ensures valid(s')
+{
+  //assert forall n :: n in leaders && (s.leader_propose[n] == 0) ==> (s'.leader_propose[n] == 0);
 }
 // Step 1b: an acceptor may receive a ballot number sent from a leader (coordinator) sometime later
 // In this case, if the ballot number is higher than the acceptor's highest recorded ballot, it will make a promise.
@@ -145,6 +160,10 @@ predicate receive_higher_ballot(s: TSState, s': TSState, c: Acceptor, a: Accepto
     && s'.promise_count == s.promise_count
     && s'.decision_count == s.decision_count
 }
+lemma Inv_receive_higher_ballot(s: TSState, s': TSState, c: Acceptor, a: Acceptor)
+  requires type_ok(s) && type_ok(s') && valid(s) && c in leaders && a in acceptors && receive_higher_ballot(s, s', c, a)
+  ensures valid(s')
+{}
 
 // Before step 2a: message 1b received by a leader (copied from pmsg)
 ghost predicate receive_response_1b(s: TSState, s': TSState, c: Acceptor, a: Acceptor, bn: int, highest: int, value: Proposal)
@@ -155,10 +174,6 @@ ghost predicate receive_response_1b(s: TSState, s': TSState, c: Acceptor, a: Acc
       || (value != 0 && s'.leader_propose == s.leader_propose[c:= value]) // the force case: the acceptor has already confirmed a value
       || (value == 0 && s'.leader_propose == s.leader_propose)
     )
-//    && (
-//      || (value != 0 && s'.leader_state == s.leader_state[c:= LState(s.leader_state[c].ballot, value)])
-//      || (value == 0 && s'.leader_state == s.leader_state)
-//    )
     && s'.promise_count == s.promise_count[c:= s.promise_count[c]+{a}]
     // all the other state components remain the same
     && s'.leader_ballot == s.leader_ballot
@@ -168,6 +183,13 @@ ghost predicate receive_response_1b(s: TSState, s': TSState, c: Acceptor, a: Acc
     && s'.decision_count == s.decision_count
     && s'.pmsgs == s.pmsgs
     && s'.cmsgs == s.cmsgs
+}
+lemma Inv_receive_response_1b(s: TSState, s': TSState, c: Acceptor, a: Acceptor, bn: int, highest: int, value: Proposal)
+  requires type_ok(s) && type_ok(s') && valid(s) && c in leaders && a in acceptors && receive_response_1b(s, s', c, a, bn, highest, value)
+  requires s.leader_decision[c] == 0 // leader c has not yet reached a decision
+  ensures valid(s')
+{
+  //assert 
 }
 
 // Step 2a, scenario 1: if a leader with a ballot number bn has collected at least F+1 promise counts, 
@@ -188,6 +210,10 @@ ghost predicate propose_value_2a(s: TSState, s': TSState, c: Acceptor, value: Pr
     && s'.pmsgs == s.pmsgs
     && s'.cmsgs == s.cmsgs
 }
+lemma Inv_propose_value_2a(s: TSState, s': TSState, c: Acceptor, value: Proposal)
+  requires  type_ok(s) && type_ok(s') && valid(s) && c in leaders && value != 0 && propose_value_2a(s, s', c, value)
+  ensures valid(s')
+{}
 
 // Step 2a, scenario 2: if a leader with a ballot number bn has received a message 1b that contains some previous confirmed value
 // the leader will propose the same value (the force case). 
@@ -211,6 +237,11 @@ ghost predicate confirm_ballot_2b(s: TSState, s': TSState, c: Acceptor, a: Accep
     && s'.decision_count == s.decision_count
     && s'.pmsgs == s.pmsgs
 }
+lemma Inv_confirm_ballot_2b(s: TSState, s': TSState, c: Acceptor, a: Acceptor, bn: int, highest: int, value: Proposal)
+  requires type_ok(s) && type_ok(s') && valid(s) && c in leaders && a in acceptors && value != 0
+  requires confirm_ballot_2b(s, s', c, a, bn, highest, value)
+  ensures valid(s')
+{}
 
 // Before step 3a: message received by a leader (copied from cmsg)
 ghost predicate receive_confirm_2b(s: TSState, s': TSState, c: Acceptor, a: Acceptor, bn: int, value: Proposal)
@@ -228,6 +259,12 @@ ghost predicate receive_confirm_2b(s: TSState, s': TSState, c: Acceptor, a: Acce
     && s'.pmsgs == s.pmsgs
     && s'.cmsgs == s.cmsgs
 }
+lemma Inv_receive_confirm_2b(s: TSState, s': TSState, c: Acceptor, a: Acceptor, bn: int, value: Proposal)
+  requires type_ok(s) && type_ok(s') && valid(s) && c in leaders && a in acceptors && value != 0
+  requires receive_confirm_2b(s, s', c, a, bn, value)
+  requires s.leader_decision[c] == 0 // c has not yet made a decision
+  ensures valid(s')
+{}
 
 // Step 3a, a leader with a ballot number bn has collected at least F+1 decision counts
 ghost predicate leader_decide(s: TSState, s': TSState, c: Acceptor, value: Proposal)
