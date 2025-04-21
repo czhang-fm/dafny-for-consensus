@@ -90,6 +90,8 @@ ghost predicate valid(s: TSState)
     //&& forall n, m :: n in leaders && m in leaders && s.leader_propose[n] != 0 && s.leader_propose[m] != 0 ==> s.leader_propose[n] == s.leader_propose[m] 
    && (forall n :: n in leaders ==> (s.leader_decision[n] != 0) ==> (|s.decision_count[n]| >= F+1)) 
    && (forall n :: n in leaders ==> (s.leader_decision[n] != 0) ==> (s.leader_propose[n] == s.leader_decision[n]))
+   && (forall n :: n in leaders ==> (s.leader_decision[n] != 0) ==> 
+     (forall m :: m in leaders && s.leader_ballot[m] >= s.leader_ballot[n] && s.leader_decision[m] != 0 ==> s.leader_decision[m] == s.leader_decision[n]))
 }
 
 // the initial state when a protocol round starts
@@ -188,9 +190,7 @@ lemma Inv_receive_response_1b(s: TSState, s': TSState, c: Acceptor, a: Acceptor,
   requires type_ok(s) && type_ok(s') && valid(s) && c in leaders && a in acceptors && receive_response_1b(s, s', c, a, bn, highest, value)
   requires s.leader_decision[c] == 0 // leader c has not yet reached a decision
   ensures valid(s')
-{
-  //assert 
-}
+{}
 
 // Step 2a, scenario 1: if a leader with a ballot number bn has collected at least F+1 promise counts, 
 // it will propose a new value to all acceptors by updating leader_propose
@@ -282,6 +282,11 @@ ghost predicate leader_decide(s: TSState, s': TSState, c: Acceptor, value: Propo
     && s'.pmsgs == s.pmsgs
     && s'.cmsgs == s.cmsgs
 }
+lemma Inv_leader_decide(s: TSState, s': TSState, c: Acceptor, value: Proposal)
+  requires type_ok(s) && type_ok(s') && valid(s) && c in leaders && value != 0
+  requires leader_decide(s, s', c, value)
+  ensures valid(s')
+{}
 
 lemma consistency(s: TSState, c1: Acceptor, c2: Acceptor)
   requires type_ok(s)
