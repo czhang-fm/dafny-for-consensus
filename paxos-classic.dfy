@@ -94,7 +94,8 @@ ghost predicate valid(s: TSState)
    && (forall n :: n in leaders ==> (s.leader_propose[n] != 0) ==> s.leader_ballot[n] != -1)
    //&& (forall n :: n in leaders ==> (s.leader_decision[n] != 0) ==> 
    //  (forall m :: m in leaders && s.leader_ballot[m] >= s.leader_ballot[n] && s.leader_decision[m] != 0 ==> s.leader_decision[m] == s.leader_decision[n]))
-   //&& (forall m :: m in leaders ==> |s.decision_count[m]| >= F+1 ==> |(set x | x in s.cmsgs && x.ballot == s.leader_ballot[m])| >= F+1)
+   //&& (forall m :: m in leaders && |s.decision_count[m]| >= F+1 ==> |(set x | x in s.cmsgs && x.ballot == s.leader_ballot[m])| >= F+1)
+   && (forall m :: m in leaders ==> |s.decision_count[m]| <= |(set x | x in s.cmsgs && x.ballot == s.leader_ballot[m])|)
    && (forall n :: n in leaders ==> (s.leader_propose[n] != 0) ==> ( //true
       || |s.promise_count[n]| >= F + 1
       || exists a, b :: a in acceptors && PMsg(s.leader_ballot[n], b, s.leader_propose[n], a) in s.pmsgs //&& b < s.leader_ballot[n]
@@ -118,7 +119,10 @@ ghost predicate init(s: TSState)
 lemma Inv_init(s: TSState)
   requires type_ok(s) && init(s)
   ensures valid(s)
-{}
+{
+  assert forall n :: n in leaders ==> |s.decision_count[n]| == 0;
+  assert forall n :: n in leaders ==>|(set x | x in s.cmsgs && x.ballot == s.leader_ballot[n])| == 0;
+}
 
 // In the following we define a transition relation for each step following the Paxos protocol.
 //
@@ -133,6 +137,7 @@ predicate choose_ballot(s: TSState, s': TSState, c: Acceptor)
     && s'.ballot == s.ballot + 1
     && s.leader_propose[c] == 0
     && s.leader_decision[c] == 0
+    && s.decision_count[c] == {} // c hasn't made any decision yet ???
     // all the other state components remain the same
     && s'.leader_propose == s.leader_propose
     && s'.leader_decision == s.leader_decision
@@ -278,7 +283,9 @@ lemma Inv_confirm_ballot_2b(s: TSState, s': TSState, c: Acceptor, a: Acceptor, v
   requires type_ok(s) && type_ok(s') && valid(s) && c in leaders && a in acceptors && value != 0
   requires confirm_ballot_2b(s, s', c, a, value)
   ensures valid(s')
-{}
+{
+  assert |s'.decision_count[c]| <= |(set x | x in s'.cmsgs && x.ballot == s'.leader_ballot[c])|;
+}
 
 // Before step 3a: message received by a leader (copied from cmsg)
 ghost predicate receive_confirm_2b(
