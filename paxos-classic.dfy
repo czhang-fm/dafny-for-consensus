@@ -95,7 +95,7 @@ ghost predicate valid(s: TSState)
    //&& (forall n :: n in leaders ==> (s.leader_decision[n] != 0) ==> 
    //  (forall m :: m in leaders && s.leader_ballot[m] >= s.leader_ballot[n] && s.leader_decision[m] != 0 ==> s.leader_decision[m] == s.leader_decision[n]))
    //&& (forall m :: m in leaders && |s.decision_count[m]| >= F+1 ==> |(set x | x in s.cmsgs && x.ballot == s.leader_ballot[m])| >= F+1)
-   && (forall m :: m in leaders ==> |s.decision_count[m]| <= |(set x | x in s.cmsgs && x.ballot == s.leader_ballot[m])|)
+   && (forall m :: m in leaders ==> (s.decision_count[m] <= (set a | a in acceptors && exists x :: x in s.cmsgs && x.ballot == s.leader_ballot[m] && x.acc == a)))
    && (forall n :: n in leaders ==> (s.leader_propose[n] != 0) ==> ( //true
       || |s.promise_count[n]| >= F + 1
       || exists a, b :: a in acceptors && PMsg(s.leader_ballot[n], b, s.leader_propose[n], a) in s.pmsgs //&& b < s.leader_ballot[n]
@@ -279,12 +279,28 @@ ghost predicate confirm_ballot_2b(
     && s'.decision_count == s.decision_count
     && s'.pmsgs == s.pmsgs
 }
+lemma subset_predicate(s1 : set<CMsg>, s2: set<CMsg>, ballot: int) // to simplify these lemmas later ...
+  requires s1 <= s2
+  ensures (set x | x in s1 && x.ballot == ballot) <= (set x | x in s2 && x.ballot == ballot)
+{}
+lemma{:axiom} subset_less(s1 : set<CMsg>, s2: set<CMsg>) // Dafny cannot directly access the size of a set
+  requires s1 <= s2
+  ensures |s1| <= |s2|
+
 lemma Inv_confirm_ballot_2b(s: TSState, s': TSState, c: Acceptor, a: Acceptor, value: Proposal)
   requires type_ok(s) && type_ok(s') && valid(s) && c in leaders && a in acceptors && value != 0
   requires confirm_ballot_2b(s, s', c, a, value)
   ensures valid(s')
 {
-  assert |s'.decision_count[c]| <= |(set x | x in s'.cmsgs && x.ballot == s'.leader_ballot[c])|;
+  //assert |s.decision_count[c]| <= |(set x | x in s.cmsgs && x.ballot == s.leader_ballot[c])|;
+  //assert |s.decision_count[c]| == |s'.decision_count[c]|;
+  //assert s.cmsgs <= s'.cmsgs;
+  //assert s.leader_ballot[c] == s'.leader_ballot[c];
+  //subset_predicate(s.cmsgs, s'.cmsgs, s.leader_ballot[c]);
+  //subset_less((set x | x in s.cmsgs && x.ballot == s.leader_ballot[c]), (set x | x in s'.cmsgs && x.ballot == s'.leader_ballot[c]));
+  //assert |(set x | x in s.cmsgs && x.ballot == s.leader_ballot[c])| <= |(set x | x in s'.cmsgs && x.ballot == s'.leader_ballot[c])|;
+  //assert |s'.decision_count[c]| <=  |(set x | x in s'.cmsgs && x.ballot == s'.leader_ballot[c])|;
+  //assert forall m :: m in leaders ==> |s'.decision_count[m]| <=  |(set x | x in s'.cmsgs && x.ballot == s'.leader_ballot[m])|;
 }
 
 // Before step 3a: message received by a leader (copied from cmsg)
