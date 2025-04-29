@@ -46,9 +46,9 @@ lemma{:axiom} Quorum()
 // an internal state of an acceptor: the highest ballot so far and its associated value 
 datatype AState = AState(highest: int, value: Proposal) 
 // the message type from an acceptor in step 1b --- Promising
-datatype PMsg = PMsg(ballot: int, highest: int, value: Proposal, acc: Acceptor)
+datatype PMsg = PMsg(ballot: int, value: Proposal)
 // the message type from an acceptor in step 2b --- Confirming
-datatype CMsg = CMsg(ballot: int, value: Proposal, acc: Acceptor)
+datatype CMsg = CMsg(ballot: int, value: Proposal)
 
 // a global state of a Paxos protocol run
 datatype TSState = TSState(
@@ -67,16 +67,16 @@ datatype TSState = TSState(
     // Here, different leaders making same decision is possible, but this should not affect consistency/safety.
     decision_count: map<Acceptor, set<Acceptor>>,
     // the set of messages sent by acceptors in step 1b
-    pmsgs: set<PMsg>,
+    pmsgs: map<Acceptor, set<PMsg>>,
     // the set of messages sent by acceptors in step 2b
-    cmsgs: set<CMsg>
+    cmsgs: map<Acceptor, set<CMsg>>
 )
 
 // define the constraints for the types of a state components
 ghost predicate type_ok(s: TSState){
     && s.leader_ballot.Keys == s.leader_propose.Keys == s.leader_decision.Keys 
         == s.promise_count.Keys == s.decision_count.Keys == leaders
-    && s.acceptor_state.Keys == acceptors
+    && s.acceptor_state.Keys == s.pmsgs.Keys == s.cmsgs.Keys == acceptors
     //&& forall n :: n in leaders ==> (forall v :: v in s.ballot_count[n].Keys ==> v >= -1)
 }
 // define what a valid state is in a Paxos run
@@ -84,23 +84,26 @@ ghost predicate type_ok(s: TSState){
 ghost predicate valid(s: TSState)
   requires type_ok(s)
 {
+    true
     //&& forall n :: n in leaders ==> (s.leader_propose[n] != 0 ==> 
     //  (|| (exists m :: m in leaders && m != n && s.leader_propose[m] == s.leader_propose[n])
     //   || |s.promise_count[n]| >= F+1 ))
     //&& forall n, m :: n in leaders && m in leaders && s.leader_propose[n] != 0 && s.leader_propose[m] != 0 ==> s.leader_propose[n] == s.leader_propose[m] 
-   && s.ballot >= -1
-   && (forall n :: n in leaders ==> (s.leader_decision[n] != 0) ==> (|s.decision_count[n]| >= F+1)) 
-   && (forall n :: n in leaders ==> (s.leader_decision[n] != 0) ==> (s.leader_propose[n] == s.leader_decision[n]))
-   && (forall n :: n in leaders ==> (s.leader_propose[n] != 0) ==> s.leader_ballot[n] != -1)
+   ////&& s.ballot >= -1
+   ////&& (forall n :: n in leaders ==> s.leader_ballot[n] <= s.ballot)
+   ////&& (forall n :: n in leaders ==> (s.leader_decision[n] != 0) ==> (|s.decision_count[n]| >= F+1)) 
+   ////&& (forall n :: n in leaders ==> (s.leader_decision[n] != 0) ==> (s.leader_propose[n] == s.leader_decision[n]))
+   ////&& (forall n :: n in leaders ==> (s.leader_propose[n] != 0) ==> s.leader_ballot[n] != -1)
    //&& (forall n :: n in leaders ==> (s.leader_decision[n] != 0) ==> 
    //  (forall m :: m in leaders && s.leader_ballot[m] >= s.leader_ballot[n] && s.leader_decision[m] != 0 ==> s.leader_decision[m] == s.leader_decision[n]))
    //&& (forall m :: m in leaders && |s.decision_count[m]| >= F+1 ==> |(set x | x in s.cmsgs && x.ballot == s.leader_ballot[m])| >= F+1)
-   && (forall m :: m in leaders ==> (s.decision_count[m] <= (set a | a in acceptors && exists x :: x in s.cmsgs && x.ballot == s.leader_ballot[m] && x.acc == a)))
+   ////&& (forall m :: m in leaders ==> (s.decision_count[m] <= (set a | a in acceptors && exists x :: x in s.cmsgs && x.ballot == s.leader_ballot[m] && x.acc == a)))
    //&& (forall m :: m in leaders ==> (s.promise_count[m] <= (set a | a in acceptors && exists x :: x in s.pmsgs && x.ballot == s.leader_ballot[m] && x.value == 0 && x.acc == a)))
-   && (forall n :: n in leaders ==> (s.leader_propose[n] != 0) ==> ( //true
-      || |s.promise_count[n]| >= F + 1
-      || exists a, b :: a in acceptors && PMsg(s.leader_ballot[n], b, s.leader_propose[n], a) in s.pmsgs //&& b < s.leader_ballot[n]
-      ))
+   ////&& (forall n :: n in leaders ==> (s.leader_propose[n] != 0) ==> ( //true
+   ////   || |s.promise_count[n]| >= F + 1
+   ////   || exists a, b :: a in acceptors && PMsg(s.leader_ballot[n], b, s.leader_propose[n], a) in s.pmsgs //&& b < s.leader_ballot[n]
+   ////   ))
+   ////&& (forall a, n1, n2, x, y :: a in acceptors && n1 in leaders && n2 in leaders && s.leader_ballot[n1] < s.leader_ballot[n2] && x in s.cmsgs && x.acc == a && s.leader_ballot[n1] == x.ballot && y in s.pmsgs && y.acc == a && s.leader_ballot[n2] == y.ballot ==> y.value == x.value)
 }
 
 // the initial state when a protocol round starts
@@ -115,14 +118,15 @@ ghost predicate init(s: TSState)
     && (forall a :: a in acceptors ==> s.acceptor_state[a] == AState(-1, 0))
     && (forall n :: n in leaders ==> s.promise_count[n] == {})
     && (forall n :: n in leaders ==> s.decision_count[n] == {})
-    && s.pmsgs == {} && s.cmsgs == {}
+    && (forall a :: a in acceptors ==> s.pmsgs[a] == {})
+    && (forall a :: a in acceptors ==> s.cmsgs[a] == {})
 }
 lemma Inv_init(s: TSState)
   requires type_ok(s) && init(s)
   ensures valid(s)
 {
-  assert forall n :: n in leaders ==> |s.decision_count[n]| == 0;
-  assert forall n :: n in leaders ==>|(set x | x in s.cmsgs && x.ballot == s.leader_ballot[n])| == 0;
+  //assert forall n :: n in leaders ==> |s.decision_count[n]| == 0;
+  //assert forall n :: n in leaders ==> |s.promise_count[n]| == 0;
 }
 
 // In the following we define a transition relation for each step following the Paxos protocol.
@@ -140,6 +144,9 @@ predicate choose_ballot(s: TSState, s': TSState, c: Acceptor)
     && s.leader_decision[c] == 0
     && s.promise_count[c] == {}
     && s.decision_count[c] == {} // c hasn't made any decision yet ???
+    // there is so far no messages in s.pmsgs and s.cmsgs that are related to c's ballot // I comment out this part for now
+    //&& (forall a, x :: a in acceptors && x in s.pmsgs[a] ==> x.ballot != s.leader_ballot[c])
+    //&& (forall a, x :: a in acceptors && x in s.cmsgs[a] ==> x.ballot != s.leader_ballot[c])
     // all the other state components remain the same
     && s'.leader_propose == s.leader_propose
     && s'.leader_decision == s.leader_decision
@@ -152,23 +159,21 @@ predicate choose_ballot(s: TSState, s': TSState, c: Acceptor)
 lemma Inv_choose_ballot(s: TSState, s': TSState, c: Acceptor)
   requires type_ok(s) && type_ok(s') && valid(s) && c in leaders && choose_ballot(s, s', c)
   ensures valid(s')
-{
-  //assert forall n :: n in leaders && (s.leader_propose[n] == 0) ==> (s'.leader_propose[n] == 0);
-}
+{}
 // Step 1b: an acceptor may receive a ballot number sent from a leader (coordinator) sometime later
 // In this case, if the ballot number is higher than the acceptor's highest recorded ballot, it will make a promise.
 // Otherwise, the acceptor will not do anything.
 // There are two possible cases here: 
-// (1) the acceptor has not yet confirmed any value (if acceptor_state[a].highest == -1); the acceptor will make a promise on that ballot number.
-// (2) the acceptor has already confirmed some value previously; the acceptor will reply with a non-zero value that is previously confirmed for another ballot
+// (1) the acceptor has not yet confirmed any value (if acceptor_state[a].value == 0); the acceptor will make a promise on that ballot number.
+// (2) the acceptor has already confirmed some value previously; the acceptor will reply with a non-zero value that is previously confirmed for the current ballot
 predicate receive_higher_ballot(s: TSState, s': TSState, c: Acceptor, a: Acceptor)
   requires type_ok(s) && type_ok(s') && valid(s) && c in leaders && a in acceptors
 {
     && s.leader_ballot[c] != -1 // leader n already has a ballot
     && s.acceptor_state[a].highest < s.leader_ballot[c] // acceptor a has not yet promised a ballot >= c's ballot
-    // acceptor a promises with a message that contains c's ballot number
-    // in this case, the second value being -1 means that the acceptor has not yet confirmed any ballot
-    && s'.pmsgs == s.pmsgs + {PMsg(s.leader_ballot[c], s.acceptor_state[a].highest, s.acceptor_state[a].value, a)} 
+    // acceptor a sends out a message that contains c's ballot number as a promise
+    // in this case, the second value being 0 means that the acceptor has not yet sent out any confirmation so far
+    && s'.pmsgs[a] == s.pmsgs[a] + {PMsg(s.leader_ballot[c], s.acceptor_state[a].value)} 
     // acceptor a updates its highest (ballot, value) pair received so far --- 
     && s'.acceptor_state == s.acceptor_state[a := AState(s.leader_ballot[c], s.acceptor_state[a].value)]
     // all the other state components remain the same
@@ -186,28 +191,20 @@ lemma Inv_receive_higher_ballot(s: TSState, s': TSState, c: Acceptor, a: Accepto
 {}
 
 // Before step 2a: message 1b received by a leader (copied from pmsg)
-ghost predicate receive_response_1b(
-    s: TSState, 
-    s': TSState, 
-    c: Acceptor, 
-    a: Acceptor, 
-    //bn: int, 
-    highest: int, 
-    value: Proposal
-  )
+ghost predicate receive_response_1b(s: TSState, s': TSState, c: Acceptor, a: Acceptor, value: Proposal)
   requires type_ok(s) && type_ok(s') && valid(s) && c in leaders && a in acceptors
 {
     //&& PMsg(bn, highest, value, a) in s.pmsgs && s.leader_ballot[c] == bn
-    && PMsg(s.leader_ballot[c], highest, value, a) in s.pmsgs
+    && PMsg(s.leader_ballot[c], value) in s.pmsgs[a]
     && s.leader_decision[c] == 0 // leader c has not yet reached a decision
     && s.leader_propose[c] == 0
-    //&& bn != -1 // leader c has chosen a ballot
+    //&& bn != -1 // leader c has chosen a ballot (i.e. c has progressed through step 1a)
     && s.leader_ballot[c] != -1
     && ( 
       || (value != 0 && s'.leader_propose == s.leader_propose[c:= value]) // the force case: the acceptor has already confirmed a value
-      || (value == 0 && s'.leader_propose == s.leader_propose)
+      // the promise_count only makes sense when it is not a force case, otherwise the leader simply follows what's decided by the system
+      || (value == 0 && s'.leader_propose == s.leader_propose && s'.promise_count == s.promise_count[c:= s.promise_count[c]+{a}])
     )
-    && s'.promise_count == s.promise_count[c:= s.promise_count[c]+{a}]
     // all the other state components remain the same
     && s'.leader_ballot == s.leader_ballot
     && s'.leader_decision == s.leader_decision
@@ -217,20 +214,13 @@ ghost predicate receive_response_1b(
     && s'.pmsgs == s.pmsgs
     && s'.cmsgs == s.cmsgs
 }
-lemma{:axiom} acceptor_membership(s: TSState, c: Acceptor, a: Acceptor)
-  requires type_ok(s) && valid(s) && c in leaders && a in acceptors
-  ensures (exists bn :: PMsg(s.leader_ballot[c], bn, 0, a) in s.pmsgs) ==> a in (set a | a in acceptors && exists x :: x in s.pmsgs && x.ballot == s.leader_ballot[c] && x.value == 0 && x.acc == a)
+////lemma{:axiom} acceptor_membership(s: TSState, c: Acceptor, a: Acceptor)
+////  requires type_ok(s) && valid(s) && c in leaders && a in acceptors
+////  ensures (exists bn :: PMsg(s.leader_ballot[c], bn, 0, a) in s.pmsgs) ==> a in (set a | a in acceptors && exists x :: x in s.pmsgs && x.ballot == s.leader_ballot[c] && x.value == 0 && x.acc == a)
 //{}
 
-lemma Inv_receive_response_1b(
-    s: TSState, 
-    s': TSState, 
-    c: Acceptor, 
-    a: Acceptor, 
-    highest: int, 
-    value: Proposal
-  )
-  requires type_ok(s) && type_ok(s') && valid(s) && c in leaders && a in acceptors && receive_response_1b(s, s', c, a, highest, value)
+lemma Inv_receive_response_1b(s: TSState, s': TSState, c: Acceptor, a: Acceptor, value: Proposal)
+  requires type_ok(s) && type_ok(s') && valid(s) && c in leaders && a in acceptors && receive_response_1b(s, s', c, a, value)
   ensures valid(s')
 {
   //acceptor_membership(s, c, a);
@@ -269,19 +259,13 @@ lemma Inv_propose_value_2a(s: TSState, s': TSState, c: Acceptor, value: Proposal
 
 
 // Step 2b, an acceptor replies with an cmsg if it receives a value with a large enough ballot number 
-ghost predicate confirm_ballot_2b(
-    s: TSState, 
-    s': TSState, 
-    c: Acceptor, 
-    a: Acceptor,  
-    value: Proposal
-  )
+ghost predicate confirm_ballot_2b(s: TSState, s': TSState, c: Acceptor, a: Acceptor, value: Proposal)
   requires type_ok(s) && type_ok(s') && valid(s) && c in leaders && a in acceptors && value != 0
 {
     && s.leader_ballot[c] == s.acceptor_state[a].highest
     && s.leader_propose[c] == value
     && s'.acceptor_state == s.acceptor_state[a := AState(s.leader_ballot[c], value)]
-    && s'.cmsgs == s.cmsgs + {CMsg(s.leader_ballot[c], value, a)}
+    && s'.cmsgs == s.cmsgs[a := s.cmsgs[a] + {CMsg(s.leader_ballot[c], value)}]
     // all the other state components remain the same
     && s'.leader_ballot == s.leader_ballot
     && s'.leader_propose == s.leader_propose
@@ -316,17 +300,10 @@ lemma Inv_confirm_ballot_2b(s: TSState, s': TSState, c: Acceptor, a: Acceptor, v
 }
 
 // Before step 3a: message received by a leader (copied from cmsg)
-ghost predicate receive_confirm_2b(
-    s: TSState, 
-    s': TSState, 
-    c: Acceptor, 
-    a: Acceptor, 
-    bn: int, 
-    value: Proposal
-  )
+ghost predicate receive_confirm_2b(s: TSState, s': TSState, c: Acceptor, a: Acceptor, value: Proposal)
   requires type_ok(s) && type_ok(s') && valid(s) && c in leaders && a in acceptors && value != 0
 {
-    && CMsg(bn, value, a) in s.cmsgs && s.leader_ballot[c] == bn
+    && CMsg(s.leader_ballot[c], value) in s.cmsgs[a] 
     && s'.decision_count == s.decision_count[c:= s.decision_count[c]+{a}]
     // all the other state components remain the same
     && s'.acceptor_state == s.acceptor_state
@@ -340,7 +317,7 @@ ghost predicate receive_confirm_2b(
 }
 lemma Inv_receive_confirm_2b(s: TSState, s': TSState, c: Acceptor, a: Acceptor, bn: int, value: Proposal)
   requires type_ok(s) && type_ok(s') && valid(s) && c in leaders && a in acceptors && value != 0
-  requires receive_confirm_2b(s, s', c, a, bn, value)
+  requires receive_confirm_2b(s, s', c, a, value)
   requires s.leader_decision[c] == 0 // c has not yet made a decision
   ensures valid(s')
 {}
