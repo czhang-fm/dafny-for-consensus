@@ -89,20 +89,20 @@ ghost predicate valid(s: TSState)
     //  (|| (exists m :: m in leaders && m != n && s.leader_propose[m] == s.leader_propose[n])
     //   || |s.promise_count[n]| >= F+1 ))
     //&& forall n, m :: n in leaders && m in leaders && s.leader_propose[n] != 0 && s.leader_propose[m] != 0 ==> s.leader_propose[n] == s.leader_propose[m] 
-   ////&& s.ballot >= -1
-   ////&& (forall n :: n in leaders ==> s.leader_ballot[n] <= s.ballot)
-   ////&& (forall n :: n in leaders ==> (s.leader_decision[n] != 0) ==> (|s.decision_count[n]| >= F+1)) 
-   ////&& (forall n :: n in leaders ==> (s.leader_decision[n] != 0) ==> (s.leader_propose[n] == s.leader_decision[n]))
-   ////&& (forall n :: n in leaders ==> (s.leader_propose[n] != 0) ==> s.leader_ballot[n] != -1)
+   && s.ballot >= -1
+   && (forall n :: n in leaders ==> s.leader_ballot[n] <= s.ballot)
+   && (forall n :: n in leaders ==> (s.leader_decision[n] != 0) ==> (|s.decision_count[n]| >= F+1)) 
+   && (forall n :: n in leaders ==> (s.leader_decision[n] != 0) ==> (s.leader_propose[n] == s.leader_decision[n]))
+   && (forall n :: n in leaders ==> (s.leader_propose[n] != 0) ==> s.leader_ballot[n] != -1)
    //&& (forall n :: n in leaders ==> (s.leader_decision[n] != 0) ==> 
    //  (forall m :: m in leaders && s.leader_ballot[m] >= s.leader_ballot[n] && s.leader_decision[m] != 0 ==> s.leader_decision[m] == s.leader_decision[n]))
    //&& (forall m :: m in leaders && |s.decision_count[m]| >= F+1 ==> |(set x | x in s.cmsgs && x.ballot == s.leader_ballot[m])| >= F+1)
    ////&& (forall m :: m in leaders ==> (s.decision_count[m] <= (set a | a in acceptors && exists x :: x in s.cmsgs && x.ballot == s.leader_ballot[m] && x.acc == a)))
    //&& (forall m :: m in leaders ==> (s.promise_count[m] <= (set a | a in acceptors && exists x :: x in s.pmsgs && x.ballot == s.leader_ballot[m] && x.value == 0 && x.acc == a)))
-   ////&& (forall n :: n in leaders ==> (s.leader_propose[n] != 0) ==> ( //true
-   ////   || |s.promise_count[n]| >= F + 1
-   ////   || exists a, b :: a in acceptors && PMsg(s.leader_ballot[n], b, s.leader_propose[n], a) in s.pmsgs //&& b < s.leader_ballot[n]
-   ////   ))
+   && (forall n :: n in leaders ==> (s.leader_propose[n] != 0) ==> ( //true
+      || |s.promise_count[n]| >= F + 1
+      || exists a :: a in acceptors && PMsg(s.leader_ballot[n], s.leader_propose[n]) in s.pmsgs[a] //&& s.leader_propose[n] != 0
+      ))
    ////&& (forall a, n1, n2, x, y :: a in acceptors && n1 in leaders && n2 in leaders && s.leader_ballot[n1] < s.leader_ballot[n2] && x in s.cmsgs && x.acc == a && s.leader_ballot[n1] == x.ballot && y in s.pmsgs && y.acc == a && s.leader_ballot[n2] == y.ballot ==> y.value == x.value)
 }
 
@@ -181,6 +181,7 @@ predicate receive_higher_ballot(s: TSState, s': TSState, c: Acceptor, a: Accepto
     && s'.leader_propose == s.leader_propose
     && s'.leader_decision == s.leader_decision
     && s'.ballot == s.ballot
+    && (forall a' :: a' in acceptors && a' != a ==> s'.pmsgs[a'] == s.pmsgs[a'])
     && s'.cmsgs == s.cmsgs
     && s'.promise_count == s.promise_count
     && s'.decision_count == s.decision_count
@@ -194,11 +195,10 @@ lemma Inv_receive_higher_ballot(s: TSState, s': TSState, c: Acceptor, a: Accepto
 ghost predicate receive_response_1b(s: TSState, s': TSState, c: Acceptor, a: Acceptor, value: Proposal)
   requires type_ok(s) && type_ok(s') && valid(s) && c in leaders && a in acceptors
 {
-    //&& PMsg(bn, highest, value, a) in s.pmsgs && s.leader_ballot[c] == bn
     && PMsg(s.leader_ballot[c], value) in s.pmsgs[a]
     && s.leader_decision[c] == 0 // leader c has not yet reached a decision
     && s.leader_propose[c] == 0
-    //&& bn != -1 // leader c has chosen a ballot (i.e. c has progressed through step 1a)
+    // leader c has chosen a ballot (i.e. c has progressed through step 1a)
     && s.leader_ballot[c] != -1
     && ( 
       || (value != 0 && s'.leader_propose == s.leader_propose[c:= value]) // the force case: the acceptor has already confirmed a value
@@ -207,6 +207,7 @@ ghost predicate receive_response_1b(s: TSState, s': TSState, c: Acceptor, a: Acc
     )
     // all the other state components remain the same
     && s'.leader_ballot == s.leader_ballot
+    && s'.leader_propose == s.leader_propose
     && s'.leader_decision == s.leader_decision
     && s'.ballot == s.ballot
     && s'.acceptor_state == s.acceptor_state
