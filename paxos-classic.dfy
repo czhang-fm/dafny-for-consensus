@@ -142,7 +142,11 @@ ghost predicate valid(s: TSState) /// the list of invariants for all states
       )))*/
    //&& (forall bn, h, v, a :: a in acceptors && PMsg(bn, h , v) in s.pmsgs[a] && v != 0 ==> s.leader_propose[s.receiver_pmsg[PMsg(bn, h, v)]] == v)
    && (forall a :: a in acceptors ==> s.acceptor_state[a].highest >= s.acceptor_ballot[a])
+   && (forall a :: a in acceptors && s.acceptor_state[a].value > 0 ==> (exists n :: n in leaders && s.acceptor_ballot[a] == s.leader_ballot[n] && s.leader_ballot[n] >= 0 && s.leader_propose[n] == s.acceptor_state[a].value))
    // now connect to highest for all PMsg(bn, h, v) when v > 0
+   && (forall bn, h, v, a :: a in acceptors && PMsg(bn, h , v) in s.pmsgs[a] && v > 0 ==> bn > s.acceptor_ballot[a])
+   //// Now we list invariants for the 2nd step of the proof
+   //&& (forall c, a :: c in leaders && a in acceptors && a in s.decision_count[c] ==> s.leader_propose[c] == s.acceptor_state[a].value)
 }
 
 // the initial state when a protocol round starts
@@ -509,12 +513,12 @@ lemma first_leader_proposal(s: TSState, c: Acceptor)
   ensures exists c' :: c' in leaders && s.leader_ballot[c'] == s.leader_ballot[c] - 1
 {}*/
 
-/*
+
 ////    assert |s.promise_count[c]| < F + 1 ==> (var c' :| c' in leaders && (s.leader_ballot[c'] == s.leader_ballot[c] - 1) && all_leader_proposal(s, c'));
 lemma all_leader_proposal(s: TSState, c: Acceptor)
   requires type_ok(s) && valid(s)
-  requires c in leaders && s.leader_propose[c] != 0
-  ensures  exists c' :: c' in leaders && s.leader_ballot[c'] <= s.leader_ballot[c] && |s.promise_count[c']| >= F + 1
+  requires c in leaders && s.leader_propose[c] > 0
+  ensures  exists c' :: c' in leaders && s.leader_ballot[c'] <= s.leader_ballot[c] && |s.promise_count[c']| >= F + 1 && s.leader_propose[c] == s.leader_propose[c']
   decreases s.leader_ballot[c]
 {
   assert s.leader_ballot[c] >= 0;
@@ -523,19 +527,15 @@ lemma all_leader_proposal(s: TSState, c: Acceptor)
   {
     first_leader_proposal(s, c);
   } else if |s.promise_count[c]| >= F + 1 {
-
-  }
-  else
+  } else
   {
-    assert s.leader_ballot[c] < s.ballot;
-    assert s.ballot > 0;
-    assert s.ballot_mapping[s.leader_ballot[c] - 1] in leaders;
-    var c' := s.ballot_mapping[s.leader_ballot[c] - 1];
-    assert s.leader_ballot[c'] == s.leader_ballot[c] - 1;
+    //assert s.ballot_mapping[s.leader_ballot[c] - 1] in leaders;
+    var a :| a in acceptors && (exists h :: PMsg(s.leader_ballot[c], h, s.leader_propose[c]) in s.pmsgs[a]);
+    var c' :| c' in leaders && s.acceptor_ballot[a] == s.leader_ballot[c'] && s.leader_propose[c'] == s.leader_propose[c];
     all_leader_proposal(s, c');
   }
 }
-*/
+
 
 /*
 lemma inv_lemma(s: TSState, s': TSState)
