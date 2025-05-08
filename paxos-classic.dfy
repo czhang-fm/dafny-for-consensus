@@ -219,8 +219,9 @@ module Paxos_protocol {
   {
     && s.leader_ballot[c] >= s.acceptor_state[a].highest
     && s.leader_propose[c] == value 
-    && ((s.acceptor_state[a].value == value && s'.acceptor_ballot == s.acceptor_ballot) // bookkeeping acceptor_ballot
-       || (s.acceptor_state[a].value != value && s'.acceptor_ballot == s.acceptor_ballot[a := s.leader_ballot[c]])) 
+    //&& ((s.acceptor_state[a].value == value && s'.acceptor_ballot == s.acceptor_ballot) // bookkeeping acceptor_ballot
+    //   || (s.acceptor_state[a].value != value && s'.acceptor_ballot == s.acceptor_ballot[a := s.leader_ballot[c]])) 
+    && s'.acceptor_ballot == s.acceptor_ballot[a := s.leader_ballot[c]] // bookkeeping acceptor_ballot
     && s'.acceptor_state == s.acceptor_state[a := AState(s.leader_ballot[c], value)]
     && s'.cmsgs == s.cmsgs[a := s.cmsgs[a] + {CMsg(s.leader_ballot[c], value)}]
     // all the other state components remain the same
