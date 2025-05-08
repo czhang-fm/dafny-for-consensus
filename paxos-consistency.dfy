@@ -56,9 +56,19 @@ module Consistency {
     ghost predicate valid(s: TSState) /// the list of invariants for all states
     requires type_ok(s)
     {
-        true
+        && (forall c :: c in leaders && (s.leader_decision[c] > 0) ==> (|s.decision_count[c]| >= F+1)) 
+        && (forall c :: c in leaders && (s.leader_decision[c] > 0) ==> (s.leader_propose[c] == s.leader_decision[c]))
+        && (forall c :: c in leaders ==> (s.leader_propose[c] > 0) ==> ( // a proposed value from c is either from an acceptor, or by c itself if majority promises are collected 
+            || |s.promise_count[c]| >= F + 1
+            || exists a, h :: a in acceptors && PMsg(s.leader_ballot[c], h, s.leader_propose[c]) in s.pmsgs[a] //
+            ))
+        // if (bn, v) is confirmed, then some leader with bn has proposed v
+        && (forall bn, v, a :: a in acceptors && CMsg(bn, v) in s.cmsgs[a] && v > 0 ==> (exists n :: n in leaders && s.leader_propose[n] == v && s.leader_ballot[n] == bn)) 
     }
-    /** the list of lemmas for the initial state and all the transitions
+
+
+
+    /** the list of lemmas for the initial state and all the transitions, since it's easier to debug in this way.
      */
     lemma Inv_init(s: TSState)
     requires type_ok(s) && init(s)
