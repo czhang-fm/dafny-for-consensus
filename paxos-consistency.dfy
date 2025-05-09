@@ -30,6 +30,7 @@ module Consistency {
         && (forall c :: c in leaders && (s.leader_decision[c] > 0) ==> (|s.decision_count[c]| >= F+1)) 
         && (forall c :: c in leaders && (s.leader_decision[c] > 0) ==> (s.leader_propose[c] == s.leader_decision[c]))
         && (forall c :: c in leaders && s.leader_propose[c] > 0 ==> s.leader_ballot[c] >= 0)
+        && (forall c :: c in leaders ==> s.promise_count[c] <= acceptors)
         && (forall a, c :: a in acceptors && c in leaders && a in s.promise_count[c] ==> (exists h :: PMsg(s.leader_ballot[c], h, 0) in s.pmsgs[a]))
         && (forall a :: a in acceptors ==> s.acceptor_state[a].value >= 0)
 //        && (forall a :: a in acceptors ==> !(PMsg(-1, -1, 0) in s.pmsgs[a])) //
@@ -61,7 +62,18 @@ module Consistency {
     requires s.leader_ballot[c1] < s.leader_ballot[c2]
     requires s.leader_propose[c1] > 0 && (|set a | a in acceptors && CMsg(s.leader_ballot[c1], s.leader_propose[c1]) in s.cmsgs[a]| >= F + 1)
     ensures |s.promise_count[c2]| <= F
-    //{}
+    {
+        assert (set a | a in acceptors && (exists h :: PMsg(s.leader_ballot[c2], h, 0) in s.pmsgs[a])) <= acceptors - (set a | a in acceptors && CMsg(s.leader_ballot[c1], s.leader_propose[c1]) in s.cmsgs[a]);
+        Quorum();
+        assert |acceptors - (set a | a in acceptors && CMsg(s.leader_ballot[c1], s.leader_propose[c1]) in s.cmsgs[a])| <= F;
+        SubsetSize((set a | a in acceptors && (exists h :: PMsg(s.leader_ballot[c2], h, 0) in s.pmsgs[a])),
+            acceptors - (set a | a in acceptors && CMsg(s.leader_ballot[c1], s.leader_propose[c1]) in s.cmsgs[a]));
+        //assert |(set a | a in acceptors && (exists h :: PMsg(s.leader_ballot[c2], h, 0) in s.pmsgs[a]))| <= F;
+        //assert forall a :: a in acceptors && a in s.promise_count[c2] ==> (exists h :: PMsg(s.leader_ballot[c2], h, 0) in s.pmsgs[a]);
+        //assert s.promise_count[c2] <= acceptors;
+        //assert s.promise_count[c2] <= (set a | a in acceptors && (exists h :: PMsg(s.leader_ballot[c2], h, 0) in s.pmsgs[a]));
+        SubsetSize(s.promise_count[c2], (set a | a in acceptors && (exists h :: PMsg(s.leader_ballot[c2], h, 0) in s.pmsgs[a])));
+    }
 
     lemma Min_leader_decision(s: TSState, c1: Acceptor, c2: Acceptor)
     requires type_ok(s) && valid(s)
