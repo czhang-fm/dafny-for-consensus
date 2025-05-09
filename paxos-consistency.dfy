@@ -30,17 +30,21 @@ module Consistency {
         && (forall c :: c in leaders && (s.leader_decision[c] > 0) ==> (|s.decision_count[c]| >= F+1)) 
         && (forall c :: c in leaders && (s.leader_decision[c] > 0) ==> (s.leader_propose[c] == s.leader_decision[c]))
         && (forall c :: c in leaders && s.leader_propose[c] > 0 ==> s.leader_ballot[c] >= 0)
-        && (forall a :: a in acceptors ==> !(PMsg(-1, -1, 0) in s.pmsgs[a])) //
-        && (forall a :: a in acceptors ==> s.acceptor_ballot[a] <= s.acceptor_state[a].highest) //
-        && (forall a, bn, value :: a in acceptors && CMsg(bn, value) in s.cmsgs[a] ==> bn <= s.acceptor_ballot[a]) //
-        && (forall a :: a in acceptors && s.acceptor_ballot[a] >= 0 ==> (s.acceptor_state[a].highest >= s.acceptor_ballot[a] && s.acceptor_state[a].value > 0)) //
-        // && (forall a, bn :: a in acceptors && PMsg(bn, -1, 0) in s.pmsgs[a] ==> (s.acceptor_ballot[a] <= bn) ==> (exists bn', value :: CMsg(bn', value) in s.cmsgs[a] && bn' <= s.acceptor_ballot[a])) //
-        // do we have for all PMsg(bn', -1, 0) in s.pmsgs[a] and CMsg(bn, value) in s.cmsgs[a], bn' <= s.acceptor_ballot <= bn ??? No, as s.acceptor_ballot may increase, unless we fix it after the first update ...
+        && (forall a :: a in acceptors ==> s.acceptor_state[a].value >= 0)
+//        && (forall a :: a in acceptors ==> !(PMsg(-1, -1, 0) in s.pmsgs[a])) //
+//        && (forall a :: a in acceptors ==> s.acceptor_ballot[a] <= s.acceptor_state[a].highest) //
+//        && (forall a, bn, value :: a in acceptors && CMsg(bn, value) in s.cmsgs[a] ==> bn <= s.acceptor_ballot[a]) //
+//        && (forall a :: a in acceptors && s.acceptor_ballot[a] >= 0 ==> (s.acceptor_state[a].highest >= s.acceptor_ballot[a] && s.acceptor_state[a].value > 0)) //
 
         // if acceptor a sends a promise to c with a highest confirmed ballot -1, then acceptor a must not have sent confirm message to any leader with a smaller ballot
         && (forall a, bn, bn', value :: a in acceptors && 0 <= bn < bn' && (CMsg(bn, value) in s.cmsgs[a]) ==> 
-               (!(PMsg(bn', -1, 0) in s.pmsgs[a])))  //* 
-        //&& (forall a, c :: a in acceptors && c in leaders && PMsg(s.leader_ballot[c], -1, s.leader_propose[c]) in s.pmsgs[a] ==> s.acceptor_state[a].value == 0)
+               (!(PMsg(bn', -1, 0) in s.pmsgs[a])))  //* (1) equivalent to the invariant (2)
+        && (forall a :: a in acceptors ==> (s.acceptor_state[a].value > 0 ==> s.acceptor_state[a].highest >=0) )
+        && (forall a, bn, highest, value :: a in acceptors && (PMsg(bn, highest, value) in s.pmsgs[a]) ==> (highest == -1 ==> value == 0))
+        && (forall a :: a in acceptors && s.acceptor_state[a].value == 0 ==> s.cmsgs[a] == {})
+        && (forall a, bn, highest, value  :: a in acceptors && (PMsg(bn, highest, value) in s.pmsgs[a]) ==> bn <= s.acceptor_state[a].highest)
+        && (forall a, bn, bn', value :: a in acceptors && (CMsg(bn, value) in s.cmsgs[a]) && (PMsg(bn', -1, 0) in s.pmsgs[a]) ==> bn >= bn') //* (2) equivalent to the invariant (1)
+
         // a proposed value from c is either from an acceptor, or by c itself if majority promises are collected 
         && (forall c :: c in leaders ==> (s.leader_propose[c] > 0) ==> ( 
             || |s.promise_count[c]| >= F + 1
