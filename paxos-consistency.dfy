@@ -54,11 +54,11 @@ module Consistency {
             ))
         // if (bn, v) is confirmed, then some leader with bn has proposed v
         && (forall bn, v, a :: a in acceptors && CMsg(bn, v) in s.cmsgs[a] && v > 0 ==> (exists n :: n in leaders && s.leader_propose[n] == v && s.leader_ballot[n] == bn)) 
-        // the following invariant is required in the proof of lemma Min_leader_decision
-        //&& (forall bn, h, v, a :: a in acceptors && PMsg(bn, h , v) in s.pmsgs[a] && v > 0 ==> 
-        //    h < bn && (exists n :: n in leaders && 0 <= s.leader_ballot[n] <= h && s.leader_propose[n] == v))
-        //&& (forall bn, h, v, a :: a in acceptors && PMsg(bn, h , v) in s.pmsgs[a] && v > 0 ==> 
-        //    (exists n :: n in leaders && CMsg(s.leader_ballot[n], s.leader_propose[n]) in s.cmsgs[a] && s.leader_ballot[n] <= h))
+        // the following invariants are required in the proof of lemma Min_leader_decision
+        && (forall a :: a in acceptors && s.acceptor_state[a].value > 0 ==> s.acceptor_state[a].highest >= 0)
+        && (forall a :: a in acceptors && s.acceptor_state[a].value > 0 ==> (exists n :: n in leaders && s.leader_propose[n] == s.acceptor_state[a].value && s.leader_ballot[n] <= s.acceptor_state[a].highest))
+        && (forall bn, h, v, a :: a in acceptors && PMsg(bn, h , v) in s.pmsgs[a] && v > 0 ==> 
+           h < bn && (exists n :: n in leaders && 0 <= s.leader_ballot[n] <= h && s.leader_propose[n] == v))
     }
 
     lemma Conflict_confirm_promise(s: TSState, c1: Acceptor, c2: Acceptor)
