@@ -54,6 +54,11 @@ module Consistency {
             ))
         // if (bn, v) is confirmed, then some leader with bn has proposed v
         && (forall bn, v, a :: a in acceptors && CMsg(bn, v) in s.cmsgs[a] && v > 0 ==> (exists n :: n in leaders && s.leader_propose[n] == v && s.leader_ballot[n] == bn)) 
+        // the following invariant is required in the proof of lemma Min_leader_decision
+        //&& (forall bn, h, v, a :: a in acceptors && PMsg(bn, h , v) in s.pmsgs[a] && v > 0 ==> 
+        //    h < bn && (exists n :: n in leaders && 0 <= s.leader_ballot[n] <= h && s.leader_propose[n] == v))
+        //&& (forall bn, h, v, a :: a in acceptors && PMsg(bn, h , v) in s.pmsgs[a] && v > 0 ==> 
+        //    (exists n :: n in leaders && CMsg(s.leader_ballot[n], s.leader_propose[n]) in s.cmsgs[a] && s.leader_ballot[n] <= h))
     }
 
     lemma Conflict_confirm_promise(s: TSState, c1: Acceptor, c2: Acceptor)
@@ -78,11 +83,15 @@ module Consistency {
     lemma Min_leader_decision(s: TSState, c1: Acceptor, c2: Acceptor)
     requires type_ok(s) && valid(s)
     requires c1 in leaders && c2 in leaders
-    requires s.leader_ballot[c1] < s.leader_ballot[c2]
-    requires s.leader_propose[c1] > 0 && (|set a | a in acceptors && CMsg(s.leader_ballot[c1], s.leader_propose[c1]) in s.cmsgs[a]| >= F + 1)
-    requires forall c :: c in leaders  && s.leader_ballot[c] < s.leader_ballot[c1] ==> (|set a | a in acceptors && CMsg(s.leader_ballot[c], s.leader_propose[c]) in s.cmsgs[a]| <= F)
-
-//    {}
+    requires s.leader_ballot[c1] <= s.leader_ballot[c2]
+    requires s.leader_propose[c1] > 0 && s.leader_propose[c2] > 0
+        && (|set a | a in acceptors && CMsg(s.leader_ballot[c1], s.leader_propose[c1]) in s.cmsgs[a]| >= F + 1)
+    requires forall c :: c in leaders  && s.leader_ballot[c] < s.leader_ballot[c1] ==> 
+        (|set a | a in acceptors && CMsg(s.leader_ballot[c], s.leader_propose[c]) in s.cmsgs[a]| <= F)
+    ensures s.leader_propose[c1] == s.leader_propose[c2]
+    //{
+        //if 
+    //}
 
     /** the list of lemmas for all the reachable states and all the transitions, since it's easier to debug in this way.
      */
