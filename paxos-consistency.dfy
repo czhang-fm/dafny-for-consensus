@@ -35,9 +35,11 @@ module Consistency {
         && (forall a, bn, value :: a in acceptors && CMsg(bn, value) in s.cmsgs[a] ==> bn <= s.acceptor_ballot[a]) //
         && (forall a :: a in acceptors && s.acceptor_ballot[a] >= 0 ==> (s.acceptor_state[a].highest >= s.acceptor_ballot[a] && s.acceptor_state[a].value > 0)) //
         // && (forall a, bn :: a in acceptors && PMsg(bn, -1, 0) in s.pmsgs[a] ==> (s.acceptor_ballot[a] <= bn) ==> (exists bn', value :: CMsg(bn', value) in s.cmsgs[a] && bn' <= s.acceptor_ballot[a])) //
+        // do we have for all PMsg(bn', -1, 0) in s.pmsgs[a] and CMsg(bn, value) in s.cmsgs[a], bn' <= s.acceptor_ballot <= bn ??? No, as s.acceptor_ballot may increase, unless we fix it after the first update ...
+
         // if acceptor a sends a promise to c with a highest confirmed ballot -1, then acceptor a must not have sent confirm message to any leader with a smaller ballot
-        && (forall a, c, bn, value :: a in acceptors && c in leaders && 0 <= bn < s.leader_ballot[c] && (CMsg(bn, value) in s.cmsgs[a]) ==> 
-               (!(PMsg(s.leader_ballot[c], -1, 0) in s.pmsgs[a])))  //* 
+        && (forall a, bn, bn', value :: a in acceptors && 0 <= bn < bn' && (CMsg(bn, value) in s.cmsgs[a]) ==> 
+               (!(PMsg(bn', -1, 0) in s.pmsgs[a])))  //* 
         //&& (forall a, c :: a in acceptors && c in leaders && PMsg(s.leader_ballot[c], -1, s.leader_propose[c]) in s.pmsgs[a] ==> s.acceptor_state[a].value == 0)
         // a proposed value from c is either from an acceptor, or by c itself if majority promises are collected 
         && (forall c :: c in leaders ==> (s.leader_propose[c] > 0) ==> ( 
