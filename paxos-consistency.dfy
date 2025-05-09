@@ -27,12 +27,18 @@ module Consistency {
     ghost predicate valid(s: TSState) /// the list of invariants for all states
     requires type_ok(s)
     {
+        // the followings are the variants that pick up basic features of the Paxos protocol to be used in the proof of the first lemma
         && (forall c :: c in leaders && (s.leader_decision[c] > 0) ==> (|s.decision_count[c]| >= F+1)) 
         && (forall c :: c in leaders && (s.leader_decision[c] > 0) ==> (s.leader_propose[c] == s.leader_decision[c]))
         && (forall c :: c in leaders && s.leader_propose[c] > 0 ==> s.leader_ballot[c] >= 0)
         && (forall c :: c in leaders ==> s.promise_count[c] <= acceptors)
         && (forall a, c :: a in acceptors && c in leaders && a in s.promise_count[c] ==> (exists h :: PMsg(s.leader_ballot[c], h, 0) in s.pmsgs[a]))
         && (forall a :: a in acceptors ==> s.acceptor_state[a].value >= 0)
+        // the following invariant is to resolve the assertion in base case of lemma Min_leader_decision
+        && s.ballot >= 0 && s.ballot == |s.ballot_mapping|
+        && (forall c :: c in leaders && s.leader_ballot[c] >= 0 ==> s.leader_ballot[c] < |s.ballot_mapping|)
+        && (forall c :: c in leaders && s.leader_ballot[c] >= 0 ==> s.ballot_mapping[s.leader_ballot[c]] == c)
+        && (forall c1, c2 :: c1 in leaders && c2 in leaders && s.leader_ballot[c1] == s.leader_ballot[c2] > 0 ==> c1 == c2)
 //        && (forall a :: a in acceptors ==> !(PMsg(-1, -1, 0) in s.pmsgs[a])) //
 //        && (forall a :: a in acceptors ==> s.acceptor_ballot[a] <= s.acceptor_state[a].highest) //
 //        && (forall a, bn, value :: a in acceptors && CMsg(bn, value) in s.cmsgs[a] ==> bn <= s.acceptor_ballot[a]) //
@@ -48,17 +54,18 @@ module Consistency {
         && (forall a, bn, bn', h, value :: a in acceptors && (CMsg(bn, value) in s.cmsgs[a]) && (PMsg(bn', h, 0) in s.pmsgs[a]) ==> bn >= bn') //* (2) equivalent to the invariant (1)
 
         // a proposed value from c is either from an acceptor, or by c itself if majority promises are collected 
+        // (used for the induction step in the proof of the lemma Min_leader_decision)
         && (forall c :: c in leaders ==> (s.leader_propose[c] > 0) ==> ( 
             || |s.promise_count[c]| >= F + 1
-            || exists a, h :: a in acceptors && PMsg(s.leader_ballot[c], h, s.leader_propose[c]) in s.pmsgs[a] //
+            || exists a, h :: a in acceptors && PMsg(s.leader_ballot[c], h, s.leader_propose[c]) in s.pmsgs[a] // * invariant X
             ))
         // if (bn, v) is confirmed, then some leader with bn has proposed v
         && (forall bn, v, a :: a in acceptors && CMsg(bn, v) in s.cmsgs[a] && v > 0 ==> (exists n :: n in leaders && s.leader_propose[n] == v && s.leader_ballot[n] == bn)) 
-        // the following invariants are required in the proof of lemma Min_leader_decision
+        // the following invariants are required for the induction step in the proof of lemma Min_leader_decision
         && (forall a :: a in acceptors && s.acceptor_state[a].value > 0 ==> s.acceptor_state[a].highest >= 0)
         && (forall a :: a in acceptors && s.acceptor_state[a].value > 0 ==> (exists n :: n in leaders && s.leader_propose[n] == s.acceptor_state[a].value && s.leader_ballot[n] <= s.acceptor_state[a].highest))
         && (forall bn, h, v, a :: a in acceptors && PMsg(bn, h , v) in s.pmsgs[a] && v > 0 ==> 
-           h < bn && (exists n :: n in leaders && 0 <= s.leader_ballot[n] <= h && s.leader_propose[n] == v))
+           h < bn && (exists n :: n in leaders && 0 <= s.leader_ballot[n] <= h && s.leader_propose[n] == v)) // * invariant Y
     }
 
     lemma Conflict_confirm_promise(s: TSState, c1: Acceptor, c2: Acceptor)
@@ -80,18 +87,29 @@ module Consistency {
         SubsetSize(s.promise_count[c2], (set a | a in acceptors && (exists h :: PMsg(s.leader_ballot[c2], h, 0) in s.pmsgs[a])));
     }
 
-    lemma Min_leader_decision(s: TSState, c1: Acceptor, c2: Acceptor)
-    requires type_ok(s) && valid(s)
-    requires c1 in leaders && c2 in leaders
-    requires s.leader_ballot[c1] <= s.leader_ballot[c2]
-    requires s.leader_propose[c1] > 0 && s.leader_propose[c2] > 0
-        && (|set a | a in acceptors && CMsg(s.leader_ballot[c1], s.leader_propose[c1]) in s.cmsgs[a]| >= F + 1)
-    requires forall c :: c in leaders  && s.leader_ballot[c] < s.leader_ballot[c1] ==> 
-        (|set a | a in acceptors && CMsg(s.leader_ballot[c], s.leader_propose[c]) in s.cmsgs[a]| <= F)
-    ensures s.leader_propose[c1] == s.leader_propose[c2]
-    //{
-        //if 
-    //}
+    // lemma Min_leader_decision(s: TSState, c1: Acceptor, c2: Acceptor)
+    // requires type_ok(s) && valid(s)
+    // requires c1 in leaders && c2 in leaders
+    // requires s.leader_ballot[c1] <= s.leader_ballot[c2]
+    // requires s.leader_propose[c1] > 0 && s.leader_propose[c2] > 0
+    //     && (|set a | a in acceptors && CMsg(s.leader_ballot[c1], s.leader_propose[c1]) in s.cmsgs[a]| >= F + 1)
+    // requires forall c :: c in leaders  && s.leader_ballot[c] < s.leader_ballot[c1] ==> 
+    //     (|set a | a in acceptors && CMsg(s.leader_ballot[c], s.leader_propose[c]) in s.cmsgs[a]| <= F)
+    // ensures s.leader_propose[c1] == s.leader_propose[c2]
+    // decreases s.leader_ballot[c2] - s.leader_ballot[c1]
+    // {
+    //     if s.leader_ballot[c2] == s.leader_ballot[c1]{
+    //         // base case: when c2 == c1, then their proposal should be the same
+    //         assert c1 == c2;
+    //     } else { 
+    //         // induction step:
+    //         assert s.leader_ballot[c2] > s.leader_ballot[c1];
+    //         Conflict_confirm_promise(s, c1, c2); // rule out the first case of invariant X
+    //         assert exists c :: c in leaders && s.leader_ballot[c] < s.leader_ballot[c2] && s.leader_propose[c] == s.leader_propose[c2];
+    //         var c3 :| c3 in leaders && s.leader_ballot[c3] < s.leader_ballot[c2] && s.leader_propose[c3] == s.leader_propose[c2]; // this is from the second case of invariant X and invariant Y
+    //         Min_leader_decision(s, c1, c3);
+    //     }
+    // }
 
     /** the list of lemmas for all the reachable states and all the transitions, since it's easier to debug in this way.
      */
