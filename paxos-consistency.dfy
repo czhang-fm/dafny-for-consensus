@@ -13,17 +13,17 @@ module Consistency {
     lemma{:axiom} Quorum()
     ensures |acceptors| == 2 * F + 1
 
-    lemma GetAcceptor<T>(A: set<Acceptor>, B: set<Acceptor>) returns (a: Acceptor)
-    requires A <= acceptors && |A| >= 1
-    requires B <= acceptors && |B| >= 1
-    requires |A| + |B| > 2 * F + 1
-    ensures a in A && a in B
-    {
-        Quorum();
-        assert |A| + |B| > |acceptors|;
-        Intersection(A, B, acceptors);
-        a :| a in A && a in B;
-    }
+    // lemma GetAcceptor<T>(A: set<Acceptor>, B: set<Acceptor>) returns (a: Acceptor)
+    // requires A <= acceptors && |A| >= 1
+    // requires B <= acceptors && |B| >= 1
+    // requires |A| + |B| > 2 * F + 1
+    // ensures a in A && a in B
+    // {
+    //     Quorum();
+    //     assert |A| + |B| > |acceptors|;
+    //     Intersection(A, B, acceptors);
+    //     a :| a in A && a in B;
+    // }
 
     lemma Conflict_confirm_promise(s: TSState, c1: Acceptor, c2: Acceptor)
     requires type_ok(s) && valid(s)
