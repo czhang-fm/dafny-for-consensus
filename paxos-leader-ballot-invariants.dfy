@@ -1,0 +1,64 @@
+include "paxos-classic.dfy"
+include "auxiliary.dfy"
+
+module Leader_ballot_invariants {
+
+    import opened Paxos_protocol
+    import opened Auxiliary_lemmas
+
+    // the following are invariants used in the proof of lemma Same_ballot_leaders (split from the main body of invariants)
+    ghost predicate valid_leader_ballot(s: TSState) 
+    requires type_ok(s)
+    {
+        && s.ballot >= 0 && s.ballot == |s.ballot_mapping|
+        && (forall c :: c in leaders && s.leader_ballot[c] >= 0 ==> s.leader_ballot[c] < |s.ballot_mapping|)
+        && (forall c :: c in leaders && s.leader_ballot[c] >= 0 ==> s.ballot_mapping[s.leader_ballot[c]] == c)
+        && (forall c1, c2 :: c1 in leaders && c2 in leaders && s.leader_ballot[c1] == s.leader_ballot[c2] > 0 ==> c1 == c2)
+    }
+
+    /** the list of lemmas for the leader ballot related invariants in all the reachable states 
+        for all the transitions, since it's easier to debug in this way.
+     */
+    lemma Inv_ballot_init(s: TSState)
+    requires type_ok(s) && init(s)
+    ensures valid_leader_ballot(s)
+    {}
+
+    lemma Inv_ballot_choose_ballot(s: TSState, s': TSState, c: Acceptor)
+    requires type_ok(s) && type_ok(s') && valid_leader_ballot(s) && c in leaders && choose_ballot(s, s', c)
+    ensures valid_leader_ballot(s')
+    {}
+
+    lemma Inv_ballot_receive_higher_ballot(s: TSState, s': TSState, c: Acceptor, a: Acceptor)
+    requires type_ok(s) && type_ok(s') && valid_leader_ballot(s) && c in leaders && a in acceptors && receive_higher_ballot(s, s', c, a)
+    ensures valid_leader_ballot(s')
+    {}
+
+    lemma Inv_ballot_receive_response_1b(s: TSState, s': TSState, c: Acceptor, a: Acceptor, value: Proposal)
+    requires type_ok(s) && type_ok(s') && valid_leader_ballot(s) && c in leaders && a in acceptors && receive_response_1b(s, s', c, a, value)
+    ensures valid_leader_ballot(s')
+    {}
+
+    lemma Inv_ballot_propose_value_2a(s: TSState, s': TSState, c: Acceptor, value: Proposal)
+    requires  type_ok(s) && type_ok(s') && valid_leader_ballot(s) && c in leaders && value != 0 && propose_value_2a(s, s', c, value)
+    ensures valid_leader_ballot(s')
+    {}
+
+    lemma Inv_ballot_confirm_ballot_2b(s: TSState, s': TSState, c: Acceptor, a: Acceptor, value: Proposal)
+    requires type_ok(s) && type_ok(s') && valid_leader_ballot(s) && c in leaders && a in acceptors && value > 0
+    requires confirm_ballot_2b(s, s', c, a, value)
+    ensures valid_leader_ballot(s')
+    {}
+
+    lemma Inv_ballot_receive_confirm_2b(s: TSState, s': TSState, c: Acceptor, a: Acceptor, bn: int, value: Proposal)
+    requires type_ok(s) && type_ok(s') && valid_leader_ballot(s) && c in leaders && a in acceptors && value > 0
+    requires receive_confirm_2b(s, s', c, a, value)
+    ensures valid_leader_ballot(s')
+    {}
+
+    lemma Inv_ballot_leader_decide(s: TSState, s': TSState, c: Acceptor, value: Proposal)
+    requires type_ok(s) && type_ok(s') && valid_leader_ballot(s) && c in leaders && value != 0
+    requires leader_decide(s, s', c, value)
+    ensures valid_leader_ballot(s')
+    {}
+}
