@@ -13,7 +13,7 @@ This repository is planned to be a store for a number of Dafny models. A purpose
 
 <p><b>A basic paxos protocol</b> </p> This model refers to the classic Paxos asynchronous model with multiple coordinators and multiple acceptors.
 
-<p></p>
+<p><b>To work on later: Asynchronous Byzantine agreement protocol</b> following the work of Bracha [4]</p>
 
 ## References
 
@@ -22,3 +22,5 @@ This repository is planned to be a store for a number of Dafny models. A purpose
 [2]: Leslie Lamport. Paxos Made Simple, 2001
 
 [3]: Jim Gray and Leslie Lamport: Consensus on Transaction Commit. MSR-TR-2003-96, 2004
+
+[4]: Gabriel Bracha: Asynchronous Byzantine Agreement Protocols. Informaiton and Computation. 75, 130-143, 1987
