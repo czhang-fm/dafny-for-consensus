@@ -1,4 +1,4 @@
-# Dafny models for consensus protocol
+# Dafny models for consensus protocols
 ## Introduction
 This repository is planned to be a store for a number of Dafny models. A purpose of this repostory is to be the home of a few example models for the COSC437 "_verification of security protocols_" lectured at the university of Canterbury. This also serves a initial feasibility study for verification of larger scaled and more complex protocols, such as those currently adopted in the Blockchain communities (Tendermint, Algorand, and Ethereum-SSF, to name a few).
 
@@ -11,9 +11,12 @@ This repository is planned to be a store for a number of Dafny models. A purpose
 
 <p>A distinguished transaction manager (TM) process coordinates a decision-making procedure. The communication model is asynchronous, i.e., messages cannot get lost, but there is not a time limit for message delivery. In this type of modelling, we define states and transitions in the form of predicates. We only prove the safety condition (Consistency) which is the last lemma in the model.</p>
 
-<p><b>A basic paxos protocol</b> </p> This model refers to the classic Paxos asynchronous model with multiple coordinators and multiple acceptors.
+<p><b>A basic paxos protocol</b> </p> <p>This model refers to the classic Paxos asynchronous model with multiple coordinators and multiple acceptors.</p>
 
-<p><b>To work on later: Asynchronous Byzantine agreement protocol</b> following the work of Bracha [4]</p>
+<p><b>To work on later: Asynchronous Byzantine agreement protocol</b> </p>
+
+<p>Following basic protocol in Fig.2 from the work of Bracha [4].</p>
+
 
 ## References
 
