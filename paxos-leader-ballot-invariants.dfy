@@ -56,9 +56,9 @@ module Leader_ballot_invariants {
     ensures valid_leader_ballot(s')
     {}
 
-    lemma Inv_ballot_leader_decide(s: TSState, s': TSState, c: Acceptor, value: Proposal)
-    requires type_ok(s) && type_ok(s') && valid_leader_ballot(s) && c in leaders && value != 0
-    requires leader_decide(s, s', c, value)
+    lemma Inv_ballot_leader_decide(s: TSState, s': TSState, c: Acceptor)
+    requires type_ok(s) && type_ok(s') && valid_leader_ballot(s) && c in leaders 
+    requires leader_decide(s, s', c)
     ensures valid_leader_ballot(s')
     {}
 }

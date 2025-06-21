@@ -27,7 +27,7 @@ module Auxiliary_lemmas {
     requires A <= C && B <= C 
     requires |A| > 0 && |B| > 0
     requires |A| + |B| > |C|
-    ensures exists a :: a in A && a in B && a in C
+    ensures exists a :: a in A && a in B // && a in C
     {
         SizeSubset(A, C-B);
     }

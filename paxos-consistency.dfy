@@ -25,24 +25,6 @@ module Consistency {
     //     a :| a in A && a in B;
     // }
 
-    lemma Conflict_confirm_promise(s: TSState, c1: Acceptor, c2: Acceptor)
-    requires type_ok(s) && valid(s)
-    requires c1 in leaders && c2 in leaders
-    requires s.leader_ballot[c1] < s.leader_ballot[c2]
-    requires s.leader_propose[c1] > 0 && (|set a | a in acceptors && CMsg(s.leader_ballot[c1], s.leader_propose[c1]) in s.cmsgs[a]| >= F + 1)
-    ensures |s.promise_count[c2]| <= F
-    {
-        assert (set a | a in acceptors && (exists h :: PMsg(s.leader_ballot[c2], h, 0) in s.pmsgs[a])) <= acceptors - (set a | a in acceptors && CMsg(s.leader_ballot[c1], s.leader_propose[c1]) in s.cmsgs[a]);
-        Quorum();
-        assert |acceptors - (set a | a in acceptors && CMsg(s.leader_ballot[c1], s.leader_propose[c1]) in s.cmsgs[a])| <= F;
-        SubsetSize((set a | a in acceptors && (exists h :: PMsg(s.leader_ballot[c2], h, 0) in s.pmsgs[a])),
-            acceptors - (set a | a in acceptors && CMsg(s.leader_ballot[c1], s.leader_propose[c1]) in s.cmsgs[a]));
-        //assert |(set a | a in acceptors && (exists h :: PMsg(s.leader_ballot[c2], h, 0) in s.pmsgs[a]))| <= F;
-        //assert forall a :: a in acceptors && a in s.promise_count[c2] ==> (exists h :: PMsg(s.leader_ballot[c2], h, 0) in s.pmsgs[a]);
-        //assert s.promise_count[c2] <= acceptors;
-        //assert s.promise_count[c2] <= (set a | a in acceptors && (exists h :: PMsg(s.leader_ballot[c2], h, 0) in s.pmsgs[a]));
-        SubsetSize(s.promise_count[c2], (set a | a in acceptors && (exists h :: PMsg(s.leader_ballot[c2], h, 0) in s.pmsgs[a])));
-    }
     // the base case of lemma Min_leader_decision
     lemma Same_ballot_leaders(s: TSState, c1: Acceptor, c2: Acceptor)
     requires type_ok(s) && valid(s) && valid_leader_ballot(s)
@@ -89,7 +71,8 @@ module Consistency {
     lemma Consistency(s: TSState, c1: Acceptor, c2: Acceptor)
     requires type_ok(s) && valid(s)
     requires c1 in leaders && c2 in leaders && (s.leader_decision[c1] > 0) && (s.leader_decision[c2] > 0)
-    //ensures s.leader_decision[c1] == s.leader_decision[c2]
+    // ensures s.leader_decision[c1] == s.leader_decision[c2]
+    // {}
 
     /* Why do we have consistency for Paxos? Intuitively, it could be understood in the following way.
     If there is a ballot bn that is observed as having been decided with value v, then

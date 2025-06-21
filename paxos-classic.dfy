@@ -1,10 +1,10 @@
 /* We establish a classic paxos model referring to 
  ** the 2001 paper (Leslie Lamport. Paxos Made Simple) and 
  ** the 2004 paper (Jim Gray and Leslie Lamport: Consensus on Transaction Commit. MSR-TR-2003-96)
- ** the author also consulted this website https://uvdn7.github.io/paxos-explained/ to achieve a better understanding in Paxos
+ ** the author also consulted this website https://uvdn7.github.io/paxos-explained/ to get a better understanding in Paxos
  * Overall we refer to the original paper of Lamport for a detailed understanding of Paxos if you are confused with part of this model
  * (Leslie Lamport. The part-time parliament. ACM transactions on Computer Systems, 16(2):133-169, May 1998)
- * There are other variants of Paxos, such as Fast Paxos, Byzantine Paxos, and Raft.
+ * There are a few variants of Paxos, such as Fast Paxos, Byzantine Paxos, and Raft.
  *
  * The classic paxos protocol has three types of "nodes":
  * - Coordinators/Proposers/Leaders: which propose values
@@ -22,15 +22,15 @@
  * Simplification and abstractions made in the model:
  * -- We assume that an coordinator picks a ballot when it becomes active (this event is atomic)
  * -- The ballot number to be selected is ever increasing, starting from 0; This implies every coordinator's ballot number is unique/distinct
- * -- Each time a ballot is picked, such information is broadcast to every acceptor
+ * -- Each time a ballot is picked, such information is broadcast to all leaders
  * -- A message is recorded in a global data structure, and may be delivered to each individual node by an individual "receive" action (modelling asynchrony)
- * -- We assume all messages are broadcast (since no party is malicious)
- * -- No modelling message of loss (as it cannot be distinguished from being ignored by the receiver)
+ * -- We assume all messages are broadcast (since no party is malicious) though the communication still asynchronous
+ * -- No modelling message of loss (as it cannot be distinguished from being ignored by the receiver or the sender becomes faulty)
  * -- If a node becomes faulty, then its irreversible (unlike a sleepy node in a sleepy model)
- * -- Learners are NOT explicitly modelled. We can directly observe a decision value if a leader/coordinator performs Step 3a.
- * -- We only model a single round of consensus
+ * -- Learners are NOT explicitly modelled. We can directly observe a decision value when a leader/coordinator performs Step 3a.
+ * -- We only model a single round of consensus.
  *
- * We prove the safety condition (Consistency) at the end of the model
+ * We prove the safety condition (Consistency) at the end of the model in a separate module.
  */
 
 module Paxos_protocol {
@@ -53,18 +53,19 @@ module Paxos_protocol {
   // a global state of a Paxos protocol run
   datatype TSState = TSState(
     leader_ballot: map<Acceptor, int>,   // updated for a leader when it picks a ballot in step 1a, initially -1
+    leader_forced: map<Acceptor, int>,   // recording the value in the force case in step 2a, initially 0
     leader_propose: map<Acceptor, Proposal>,  // updated in step 2a for a leader when it proposes a value, initially 0
     leader_decision: map<Acceptor, Proposal>, // updated in step 3a for a leader when it decides a value, initially 0
-    ballot: int,  // initially 0
+    ballot: int,  // initially 0 and incremented each time the current vallue is picked by a leader
     // states of acceptors
     acceptor_state: map<Acceptor, AState>,  
-    // states of leaders are already encoded in the first three maps
+    // states of leaders are already encoded in the leader_xyz maps
 
     // counting PMsg of the form <bn, 0> from any acceptor message in step 1b
     // where the domain of the map is the set of leaders
     promise_count: map<Acceptor, set<Acceptor>>,    
     // counting CMsg from acceptors of the form <bal, val> in step 2b, where the domain of the map is the set of leaders
-    // Here, different leaders making a (same) decision is possible, which should not affect consistency/safety.
+    // Here, different leaders making the same decision is possible, which should not affect consistency/safety.
     decision_count: map<Acceptor, set<Acceptor>>,
     // the set of messages sent by acceptors in step 1b
     pmsgs: map<Acceptor, set<PMsg>>,
@@ -78,7 +79,7 @@ module Paxos_protocol {
 
   // define the constraints for the types of a state components
   ghost predicate type_ok(s: TSState){
-    && s.leader_ballot.Keys == s.leader_propose.Keys == s.leader_decision.Keys 
+    && s.leader_ballot.Keys == s.leader_propose.Keys == s.leader_decision.Keys == s.leader_forced.Keys
         == s.promise_count.Keys == s.decision_count.Keys == leaders
     && s.acceptor_state.Keys == s.pmsgs.Keys == s.cmsgs.Keys == s.acceptor_ballot.Keys == acceptors
     && F > 0 // We assume there are at least 3 acceptors in the protocol
@@ -90,6 +91,7 @@ module Paxos_protocol {
   {
     && s.ballot == 0
     && (forall c :: c in leaders ==> s.leader_ballot[c] == -1)
+    && (forall c :: c in leaders ==> s.leader_forced[c] == 0)
     && (forall c :: c in leaders ==> s.leader_propose[c] == 0)
     && (forall c :: c in leaders ==> s.leader_decision[c] == 0)
     && (forall c :: c in leaders ==> s.decision_count[c] == {})
@@ -117,7 +119,9 @@ module Paxos_protocol {
     && s.leader_decision[c] == 0 // c hasn't made any decision yet
     && s.promise_count[c] == {}
     && s.decision_count[c] == {}  
+    && s.leader_forced[c] == 0
     // all the other state components remain the same
+    && s'.leader_forced == s.leader_forced
     && s'.leader_propose == s.leader_propose
     && s'.leader_decision == s.leader_decision
     && s'.acceptor_state == s.acceptor_state
@@ -138,7 +142,7 @@ module Paxos_protocol {
   predicate receive_higher_ballot(s: TSState, s': TSState, c: Acceptor, a: Acceptor)
   requires type_ok(s) && type_ok(s') && c in leaders && a in acceptors
   {
-    && s.leader_ballot[c] >= 0 // != -1 // leader n already has a ballot
+    && s.leader_ballot[c] >= 0 // leader n already has a ballot
     && s.acceptor_state[a].highest < s.leader_ballot[c] // acceptor a has not yet promised a ballot >= c 's ballot
     // acceptor a sends out a message that contains c's ballot number as a promise
     // in this case, the second value being 0 means that the acceptor has not yet sent out any confirmation so far
@@ -147,6 +151,7 @@ module Paxos_protocol {
     && s'.acceptor_state == s.acceptor_state[a := AState(s.leader_ballot[c], s.acceptor_state[a].value)]
     // all the other state components remain the same
     && s'.leader_ballot == s.leader_ballot
+    && s'.leader_forced == s.leader_forced
     && s'.leader_propose == s.leader_propose
     && s'.leader_decision == s.leader_decision
     && s'.ballot == s.ballot
@@ -163,14 +168,15 @@ module Paxos_protocol {
   {
     && (exists highest :: PMsg(s.leader_ballot[c], highest, value) in s.pmsgs[a])
     && s.leader_decision[c] == 0 // leader c has not yet reached a decision
-    && s.leader_propose[c] == 0
+    && s.leader_propose[c] == 0  // leader c has not yet proposed a value
     // leader c has chosen a ballot (i.e. c has progressed through step 1a)
     && s.leader_ballot[c] >= 0
     && ( 
-      || (value > 0 && s'.leader_propose == s.leader_propose[c:= value]) // the force case: the acceptor has already confirmed a value
-      // the promise_count only makes sense when it is not a force case, otherwise the leader simply follows what's decided by the system
-      || (value == 0 && s'.leader_propose == s.leader_propose && s'.promise_count == s.promise_count[c:= s.promise_count[c]+{a}]) // the free case:
+      || (value > 0 && s'.leader_forced == s.leader_forced[c:= value]) // the force case: the acceptor has already confirmed a value
+                                                                       // if so, the leader simply follows what's decided by the system
+      || (value == 0 && s'.leader_forced == s.leader_forced) // the free case: do not update s.leader_forced
     )
+    && s'.promise_count == s.promise_count[c:= s.promise_count[c]+{a}] // adding acceptor a to leader c's promise_count
     // all the other state components remain the same
     && s'.leader_ballot == s.leader_ballot
     && s'.leader_propose == s.leader_propose
@@ -186,6 +192,8 @@ module Paxos_protocol {
 
   // Step 2a, scenario 1: if a leader with a ballot number bn has collected at least F+1 promise counts, 
   // it will propose a new value to all acceptors by updating leader_propose
+  // scenario 2: if a leader with a ballot number bn has received a message 1b that contains some previous confirmed value, i.e., s.leader_forced[c] > 0
+  // the leader will propose the same value (the force case). 
   ghost predicate propose_value_2a(s: TSState, s': TSState, c: Acceptor, value: Proposal)
   requires type_ok(s) && type_ok(s') && c in leaders 
   {
@@ -194,9 +202,13 @@ module Paxos_protocol {
     && s.leader_propose[c] == 0
     && s.leader_decision[c] == 0
     && value > 0
-    && s'.leader_propose == s.leader_propose[c:= value]
+    && (
+      || (s.leader_forced[c] > 0 && s'.leader_propose == s.leader_propose[c:= s.leader_forced[c]])
+      || (s.leader_forced[c] == 0 && s'.leader_propose == s.leader_propose[c:= value])
+    )
     // all the other state components remain the same
     && s'.leader_ballot == s.leader_ballot
+    && s'.leader_forced == s.leader_forced
     && s'.leader_decision == s.leader_decision
     && s'.ballot == s.ballot
     && s'.acceptor_state == s.acceptor_state
@@ -208,24 +220,19 @@ module Paxos_protocol {
     && s'.acceptor_ballot == s.acceptor_ballot
   }
 
-  // Step 2a, scenario 2: if a leader with a ballot number bn has received a message 1b that contains some previous confirmed value
-  // the leader will propose the same value (the force case). 
-  // We do not need to define a new predicate for this behaviour as it is already encoded in the "receive_response_1b" predicate
 
-
-  // Step 2b, an acceptor replies with an cmsg if it receives a value with a large enough ballot number 
+  // Step 2b, an acceptor replies with a cmsg if it receives a value with a large enough ballot number 
   ghost predicate confirm_ballot_2b(s: TSState, s': TSState, c: Acceptor, a: Acceptor, value: Proposal)
   requires type_ok(s) && type_ok(s') && c in leaders && a in acceptors && value > 0
   {
     && s.leader_ballot[c] >= s.acceptor_state[a].highest
     && s.leader_propose[c] == value 
-    //&& ((s.acceptor_state[a].value == value && s'.acceptor_ballot == s.acceptor_ballot) // bookkeeping acceptor_ballot
-    //   || (s.acceptor_state[a].value != value && s'.acceptor_ballot == s.acceptor_ballot[a := s.leader_ballot[c]])) 
     && s'.acceptor_ballot == s.acceptor_ballot[a := s.leader_ballot[c]] // bookkeeping acceptor_ballot
     && s'.acceptor_state == s.acceptor_state[a := AState(s.leader_ballot[c], value)]
     && s'.cmsgs == s.cmsgs[a := s.cmsgs[a] + {CMsg(s.leader_ballot[c], value)}]
     // all the other state components remain the same
     && s'.leader_ballot == s.leader_ballot
+    && s'.leader_forced == s.leader_forced
     && s'.leader_propose == s.leader_propose
     && s'.leader_decision == s.leader_decision
     && s'.ballot == s.ballot
@@ -246,6 +253,7 @@ module Paxos_protocol {
     // all the other state components remain the same
     && s'.acceptor_state == s.acceptor_state
     && s'.leader_ballot == s.leader_ballot
+    && s'.leader_forced == s.leader_forced
     && s'.leader_propose == s.leader_propose
     && s'.leader_decision == s.leader_decision
     && s'.ballot == s.ballot
@@ -257,14 +265,16 @@ module Paxos_protocol {
   }
 
   // Step 3a, a leader with a ballot number bn has collected at least F+1 decision counts
-  ghost predicate leader_decide(s: TSState, s': TSState, c: Acceptor, value: Proposal)
-  requires type_ok(s) && type_ok(s') && c in leaders && value != 0
+  ghost predicate leader_decide(s: TSState, s': TSState, c: Acceptor) 
+  requires type_ok(s) && type_ok(s') && c in leaders 
   {
-    && |s.decision_count[c]| >= F+1 && s.leader_decision[c] == 0 && s.leader_propose[c] == value
-    && s'.leader_decision == s.leader_decision[c := value]
+    && |s.decision_count[c]| >= F+1 && s.leader_decision[c] == 0 
+    && s.leader_propose[c] > 0
+    && s'.leader_decision == s.leader_decision[c := s.leader_propose[c]]
     // all the other state components remain the same
     && s'.acceptor_state == s.acceptor_state
     && s'.leader_ballot == s.leader_ballot
+    && s'.leader_forced == s.leader_forced
     && s'.leader_propose == s.leader_propose
     && s'.ballot == s.ballot
     && s'.promise_count == s.promise_count
@@ -284,6 +294,6 @@ module Paxos_protocol {
     || (exists c, value :: c in leaders && value != 0 && propose_value_2a(s, s', c, value))
     || (exists c, a, value :: c in leaders && a in acceptors && value > 0 && receive_confirm_2b(s, s', c, a, value))
     || (exists c, a, value :: c in leaders && a in acceptors && value > 0 && confirm_ballot_2b(s, s', c, a, value))
-    || (exists c, value :: c in leaders && value != 0 && leader_decide(s, s', c, value))
+    || (exists c :: c in leaders && leader_decide(s, s', c))
   }
 }
