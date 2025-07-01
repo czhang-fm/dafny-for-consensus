@@ -70,18 +70,14 @@ module Paxos_protocol {
     // the set of messages sent by acceptors in step 1b
     pmsgs: map<Acceptor, set<PMsg>>,
     // the set of messages sent by acceptors in step 2b
-    cmsgs: map<Acceptor, set<CMsg>>,
-    // an auxiliary data structure from the set of chosen ballots to leaders
-    ballot_mapping: seq<Acceptor>,
-    // an auxiliary function mapping each acceptor to a ballot number which decides the acceptor's current confirmed value
-    acceptor_ballot: map<Acceptor, int>
+    cmsgs: map<Acceptor, set<CMsg>>
   )
 
   // define the constraints for the types of a state components
   ghost predicate type_ok(s: TSState){
     && s.leader_ballot.Keys == s.leader_propose.Keys == s.leader_decision.Keys == s.leader_forced.Keys
         == s.promise_count.Keys == s.decision_count.Keys == leaders
-    && s.acceptor_state.Keys == s.pmsgs.Keys == s.cmsgs.Keys == s.acceptor_ballot.Keys == acceptors
+    && s.acceptor_state.Keys == s.pmsgs.Keys == s.cmsgs.Keys == acceptors
     && F > 0 // We assume there are at least 3 acceptors in the protocol
   }
 
@@ -100,8 +96,6 @@ module Paxos_protocol {
     && (forall c :: c in leaders ==> s.decision_count[c] == {})
     && (forall a :: a in acceptors ==> s.pmsgs[a] == {})
     && (forall a :: a in acceptors ==> s.cmsgs[a] == {})
-    && (forall a :: a in acceptors ==> s.acceptor_ballot[a] == -1)
-    && s.ballot_mapping == []
   }
 
   // In the following we define a transition relation for each step following the Paxos protocol.
@@ -129,8 +123,6 @@ module Paxos_protocol {
     && s'.decision_count == s.decision_count
     && s'.pmsgs == s.pmsgs
     && s'.cmsgs == s.cmsgs
-    && s'.ballot_mapping == s.ballot_mapping + [c]
-    && s'.acceptor_ballot == s.acceptor_ballot
   }
 
   // Step 1b: an acceptor receives a ballot number sent from a leader (coordinator) 
@@ -158,8 +150,6 @@ module Paxos_protocol {
     && s'.cmsgs == s.cmsgs
     && s'.promise_count == s.promise_count
     && s'.decision_count == s.decision_count
-    && s'.ballot_mapping == s.ballot_mapping
-    && s'.acceptor_ballot == s.acceptor_ballot
   }
 
   // Before step 2a: message 1b received by a leader (copied from pmsg)
@@ -186,8 +176,6 @@ module Paxos_protocol {
     && s'.decision_count == s.decision_count
     && s'.pmsgs == s.pmsgs
     && s'.cmsgs == s.cmsgs
-    && s'.ballot_mapping == s.ballot_mapping
-    && s'.acceptor_ballot == s.acceptor_ballot
   }
 
   // Step 2a, scenario 1: if a leader with a ballot number bn has collected at least F+1 promise counts, 
@@ -216,8 +204,6 @@ module Paxos_protocol {
     && s'.decision_count == s.decision_count
     && s'.pmsgs == s.pmsgs
     && s'.cmsgs == s.cmsgs
-    && s'.ballot_mapping == s.ballot_mapping
-    && s'.acceptor_ballot == s.acceptor_ballot
   }
 
 
@@ -227,7 +213,7 @@ module Paxos_protocol {
   {
     && s.leader_ballot[c] >= s.acceptor_state[a].highest
     && s.leader_propose[c] == value 
-    && s'.acceptor_ballot == s.acceptor_ballot[a := s.leader_ballot[c]] // bookkeeping acceptor_ballot
+    // && (s.acceptor_state[a].value == 0 || s.acceptor_state[a].value == value) // only accept agreed value, not reasonable 
     && s'.acceptor_state == s.acceptor_state[a := AState(s.leader_ballot[c], value)]
     && s'.cmsgs == s.cmsgs[a := s.cmsgs[a] + {CMsg(s.leader_ballot[c], value)}]
     // all the other state components remain the same
@@ -239,7 +225,6 @@ module Paxos_protocol {
     && s'.promise_count == s.promise_count
     && s'.decision_count == s.decision_count
     && s'.pmsgs == s.pmsgs
-    && s'.ballot_mapping == s.ballot_mapping
   }
 
   // Before step 3a: message received by a leader (copied from cmsg)
@@ -260,8 +245,6 @@ module Paxos_protocol {
     && s'.promise_count == s.promise_count
     && s'.pmsgs == s.pmsgs
     && s'.cmsgs == s.cmsgs
-    && s'.ballot_mapping == s.ballot_mapping
-    && s'.acceptor_ballot == s.acceptor_ballot
   }
 
   // Step 3a, a leader with a ballot number bn has collected at least F+1 decision counts
@@ -281,8 +264,6 @@ module Paxos_protocol {
     && s'.decision_count == s.decision_count
     && s'.pmsgs == s.pmsgs
     && s'.cmsgs == s.cmsgs
-    && s'.ballot_mapping == s.ballot_mapping
-    && s'.acceptor_ballot == s.acceptor_ballot
   }
 
   ghost predicate transition(s: TSState, s': TSState)

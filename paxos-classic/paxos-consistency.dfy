@@ -1,14 +1,14 @@
 include "paxos-classic.dfy"
 include "auxiliary.dfy"
 include "paxos-invariants.dfy"
-include "paxos-leader-ballot-invariants.dfy"
+// include "paxos-leader-ballot-invariants.dfy"
 
 module Consistency {
 
     import opened Paxos_protocol
     import opened Auxiliary_lemmas
     import opened Invariants
-    import opened Leader_ballot_invariants
+    // import opened Leader_ballot_invariants
 
     lemma{:axiom} Quorum()
     ensures |acceptors| == 2 * F + 1
@@ -25,21 +25,21 @@ module Consistency {
     //     a :| a in A && a in B;
     // }
 
-    // the base case of lemma Min_leader_decision
-    lemma Same_ballot_leaders(s: TSState, c1: Acceptor, c2: Acceptor)
-    requires type_ok(s) && valid(s) && valid_leader_ballot(s)
-    requires c1 in leaders && c2 in leaders
-    requires s.leader_ballot[c1] == s.leader_ballot[c2] >= 0
-    ensures c1 == c2
-    {}
-    // selecting a leader with the same proposal but a smaller ballot number in the induction step of lemma Min_leader_decision
-    lemma Select_leader_smaller_ballot(s: TSState, c1: Acceptor) returns (c2: Acceptor)
-    requires type_ok(s) && valid(s) && c1 in leaders
-    requires s.leader_propose[c1] > 0 && |s.promise_count[c1]| <= F
-    ensures c2 in leaders && s.leader_ballot[c2] < s.leader_ballot[c1] && s.leader_propose[c2] == s.leader_propose[c1]
-    {
-        c2 :| c2 in leaders && s.leader_ballot[c2] < s.leader_ballot[c1] && s.leader_propose[c2] == s.leader_propose[c1];
-    }
+    // // the base case of lemma Min_leader_decision
+    // lemma Same_ballot_leaders(s: TSState, c1: Acceptor, c2: Acceptor)
+    // requires type_ok(s) && valid(s) && valid_leader_ballot(s)
+    // requires c1 in leaders && c2 in leaders
+    // requires s.leader_ballot[c1] == s.leader_ballot[c2] >= 0
+    // ensures c1 == c2
+    // {}
+    // // selecting a leader with the same proposal but a smaller ballot number in the induction step of lemma Min_leader_decision
+    // lemma Select_leader_smaller_ballot(s: TSState, c1: Acceptor) returns (c2: Acceptor)
+    // requires type_ok(s) && valid(s) && c1 in leaders
+    // requires s.leader_propose[c1] > 0 && |s.promise_count[c1]| <= F
+    // ensures c2 in leaders && s.leader_ballot[c2] < s.leader_ballot[c1] && s.leader_propose[c2] == s.leader_propose[c1]
+    // {
+    //     c2 :| c2 in leaders && s.leader_ballot[c2] < s.leader_ballot[c1] && s.leader_propose[c2] == s.leader_propose[c1];
+    // }
 
     // lemma Min_leader_decision(s: TSState, c1: Acceptor, c2: Acceptor)
     // requires type_ok(s) && valid(s) && valid_leader_ballot(s)
