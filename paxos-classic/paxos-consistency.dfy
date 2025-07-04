@@ -48,7 +48,7 @@ module Consistency {
         }
 
     }
-    // lemma 2 //* invariant Y as lemma 2
+    // lemma 2 //* invariant X' as lemma 2
     lemma Majority_promise(s: TSState, c: Acceptor)
     requires type_ok(s) && valid(s)
     requires c in leaders && s.leader_forced[c] == 0 && s.leader_propose[c] > 0
