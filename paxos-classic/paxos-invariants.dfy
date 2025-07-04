@@ -25,7 +25,7 @@ module Invariants {
 //        && (forall a :: a in acceptors && s.acceptor_ballot[a] >= 0 ==> (s.acceptor_state[a].highest >= s.acceptor_ballot[a] && s.acceptor_state[a].value > 0)) //
 
         && (forall a :: a in acceptors ==> (s.acceptor_state[a].value > 0 ==> s.acceptor_state[a].highest >=0) )
-        && (forall a, bn, highest, value :: a in acceptors && (PMsg(bn, highest, value) in s.pmsgs[a]) ==> (highest == -1 ==> value == 0))
+        && (forall a, bn, highest, value :: a in acceptors && (PMsg(bn, highest, value) in s.pmsgs[a]) ==> (highest == -1 <==> value == 0))
         && (forall a :: a in acceptors && s.acceptor_state[a].value == 0 ==> s.cmsgs[a] == {})
         && (forall a, bn, highest, value  :: a in acceptors && (PMsg(bn, highest, value) in s.pmsgs[a]) ==> bn <= s.acceptor_state[a].highest)
         && (forall a, bn, bn', value :: a in acceptors && (CMsg(bn, value) in s.cmsgs[a]) && (PMsg(bn', -1, 0) in s.pmsgs[a]) ==> bn >= bn') //* invariant W
@@ -37,10 +37,13 @@ module Invariants {
             || s.leader_forced[c] == 0 
             || (s.leader_forced[c] > 0 && s.leader_propose[c] == s.leader_forced[c])
         ))
-        && (forall c, a:: c in leaders && a in acceptors && a in s.promise_count[c] ==> (exists h, v :: PMsg(s.leader_ballot[c], h, v) in s.pmsgs[a] && h <= s.leader_forced_ballot[c]))
-        // && (forall c :: c in leaders && s.leader_forced[c] == 0 && s.leader_ballot[c] >= 0 ==> s.leader_forced_ballot[c] < s.leader_ballot[c])
-        // && (forall c, a :: c in leaders && a in acceptors && s.leader_forced[c] == 0 && a in s.promise_count[c] ==> PMsg(s.leader_ballot[c], -1, 0) in s.pmsgs[a])
-        // && (forall c :: c in leaders ==> (s.leader_propose[c] > 0) ==> s.leader_forced[c] == 0 ==> |set a | a in acceptors && PMsg(s.leader_ballot[c], -1, 0) in s.pmsgs[a]| >= F + 1) //* invariant Y
+        && (forall c, a :: c in leaders && a in acceptors && a in s.promise_count[c] ==> (exists h, v :: PMsg(s.leader_ballot[c], h, v) in s.pmsgs[a] && h <= s.leader_forced_ballot[c]))
+        && (forall c :: c in leaders && s.leader_forced[c] == 0 && s.leader_ballot[c] >= 0 ==> s.leader_forced_ballot[c] < s.leader_ballot[c])
+        && (forall c :: c in leaders ==> (s.leader_forced[c] == 0 <==> s.leader_forced_ballot[c] == -1))
+        && (forall a, bn, h, v :: a in acceptors && PMsg(bn, h, v) in s.pmsgs[a] ==> (h < 0 <==> h == -1)) // another auxiliary inv
+        && (forall c :: c in leaders ==> (s.promise_count[c] <= (set a | a in acceptors && exists h, v :: PMsg(s.leader_ballot[c], h, v) in s.pmsgs[a])))
+        // && (forall c, a, h, v :: c in leaders && a in acceptors && s.leader_forced[c] == 0 && a in s.promise_count[c] && PMsg(s.leader_ballot[c], h, v) in s.pmsgs[a] ==> (h == -1 && v == 0)) //* as lemma 1
+        // && (forall c :: c in leaders ==> (s.leader_propose[c] > 0) ==> s.leader_forced[c] == 0 ==> |set a | a in acceptors && PMsg(s.leader_ballot[c], -1, 0) in s.pmsgs[a]| >= F + 1) //* invariant Y as lemma 2
         
 
         // && (forall c :: c in leaders ==> (s.leader_forced_ballot[c] < s.leader_ballot[c]))
@@ -88,7 +91,9 @@ module Invariants {
     lemma Inv_receive_higher_ballot(s: TSState, s': TSState, c: Acceptor, a: Acceptor)
     requires type_ok(s) && type_ok(s') && valid(s) && c in leaders && a in acceptors && receive_higher_ballot(s, s', c, a)
     ensures valid(s')
-    {}
+    {
+        assert forall c :: c in leaders ==> (set a | a in acceptors && exists h, v :: PMsg(s.leader_ballot[c], h, v) in s.pmsgs[a]) <= (set a | a in acceptors && exists h, v :: PMsg(s'.leader_ballot[c], h, v) in s'.pmsgs[a]);
+    }
 
     lemma Inv_receive_response_1b(s: TSState, s': TSState, c: Acceptor, a: Acceptor, highest: int, value: Proposal)
     requires type_ok(s) && type_ok(s') && valid(s) && c in leaders && a in acceptors && receive_response_1b(s, s', c, a, highest, value)

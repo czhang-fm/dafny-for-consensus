@@ -25,6 +25,40 @@ module Consistency {
         a :| a in A && a in B;
     }
 
+    // lemma 1: if an acceptor is in the promised set and leader is nonforced, then there is such a promise
+    lemma Nonforced_promise(s: TSState, c: Acceptor, a: Acceptor, highest: int, v: Proposal)
+    requires type_ok(s) && valid(s)
+    requires c in leaders && s.leader_forced[c] == 0 && a in s.promise_count[c]
+    ensures exists highest, v :: PMsg(s.leader_ballot[c], highest, v) in s.pmsgs[a] && highest == -1 && v == 0
+    {}
+    // an auxiliary lemma for lemma 2
+    lemma Nonforced_promise_2(s: TSState, c: Acceptor)
+    requires type_ok(s) && valid(s)
+    requires c in leaders && s.leader_forced[c] == 0 && s.leader_propose[c] > 0
+    ensures s.promise_count[c] <= (set a | a in acceptors && PMsg(s.leader_ballot[c], -1, 0) in s.pmsgs[a])
+    {
+        if s.promise_count[c] == {}
+        {}
+        else {
+            var a :| a in s.promise_count[c];
+            assert a in (set a | a in acceptors && exists h, v :: PMsg(s.leader_ballot[c], h, v) in s.pmsgs[a]);
+            var h, v :| PMsg(s.leader_ballot[c], h, v) in s.pmsgs[a];
+            Nonforced_promise(s, c, a, h, v);
+            assert PMsg(s.leader_ballot[c], -1, 0) in s.pmsgs[a];
+        }
+
+    }
+    // lemma 2 //* invariant Y as lemma 2
+    lemma Majority_promise(s: TSState, c: Acceptor)
+    requires type_ok(s) && valid(s)
+    requires c in leaders && s.leader_forced[c] == 0 && s.leader_propose[c] > 0
+    ensures |set a | a in acceptors && PMsg(s.leader_ballot[c], -1, 0) in s.pmsgs[a]| >= F + 1
+    {
+        assert |s.promise_count[c]| >= F + 1;
+        Nonforced_promise_2(s, c);
+        SubsetSize(s.promise_count[c], (set a | a in acceptors && PMsg(s.leader_ballot[c], -1, 0) in s.pmsgs[a]));
+    }
+
     // // the base case of lemma Min_leader_decision
     // lemma Same_ballot_leaders(s: TSState, c1: Acceptor, c2: Acceptor)
     // requires type_ok(s) && valid(s) && valid_leader_ballot(s)

@@ -140,9 +140,12 @@ module Paxos_protocol {
   {
     && s.leader_ballot[c] >= 0 // leader n already has a ballot
     && s.acceptor_state[a].highest < s.leader_ballot[c] // acceptor a has not yet promised a ballot >= c 's ballot
-    // acceptor a sends out a message that contains c's ballot number as a promise
-    // in this case, the last value being 0 means that the acceptor has not yet sent out any confirmation so far
-    && s'.pmsgs == s.pmsgs[a := s.pmsgs[a] + {PMsg(s.leader_ballot[c], s.acceptor_state[a].highest, s.acceptor_state[a].value)}]
+    // acceptor [a] sends out a message that contains c's ballot number as a promise PMsg(c'ballot, -1, 0)
+    // otherwise, the last value > 0 means that the acceptor has sent out a confirmation to a proposer with its ballot number at most accepter_state[a].highest
+    && (
+      || (s.acceptor_state[a].value == 0 && (s'.pmsgs == s.pmsgs[a := s.pmsgs[a] + {PMsg(s.leader_ballot[c], -1, 0)}]))
+      || (s.acceptor_state[a].value > 0 && (s'.pmsgs == s.pmsgs[a := s.pmsgs[a] + {PMsg(s.leader_ballot[c], s.acceptor_state[a].highest, s.acceptor_state[a].value)}]))
+    )
     // acceptor a updates its highest ballot received so far --- 
     && s'.acceptor_state == s.acceptor_state[a := AState(s.leader_ballot[c], s.acceptor_state[a].value)]
     // all the other state components remain the same
@@ -218,7 +221,7 @@ module Paxos_protocol {
   ghost predicate confirm_ballot_2b(s: TSState, s': TSState, c: Acceptor, a: Acceptor, value: Proposal)
   requires type_ok(s) && type_ok(s') && c in leaders && a in acceptors && value > 0
   {
-    && s.leader_ballot[c] >= s.acceptor_state[a].highest
+    && s.leader_ballot[c] >= s.acceptor_state[a].highest // this is possible as some previous messages may be lost
     && s.leader_propose[c] == value 
     // && (s.acceptor_state[a].value == 0 || s.acceptor_state[a].value == value) // only accept agreed value, not reasonable 
     && s'.acceptor_state == s.acceptor_state[a := AState(s.leader_ballot[c], value)]
