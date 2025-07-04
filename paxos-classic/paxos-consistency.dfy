@@ -66,6 +66,7 @@ module Consistency {
     ensures c2 in leaders && s.leader_propose[c1] == s.leader_propose[c2] 
     ensures s.leader_ballot[c1] >= s.leader_ballot[c2]
     ensures |set a | a in acceptors && PMsg(s.leader_ballot[c2], -1, 0) in s.pmsgs[a]| >= F + 1
+    decreases s.leader_ballot[c1]
     {
         // use variant X to expand to two cases:
         if s.leader_forced[c1] == 0 {
