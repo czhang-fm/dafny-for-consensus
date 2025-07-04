@@ -1,14 +1,14 @@
 include "paxos-classic.dfy"
 include "auxiliary.dfy"
 include "paxos-invariants.dfy"
-// include "paxos-leader-ballot-invariants.dfy"
+include "paxos-leader-ballot-invariants.dfy"
 
 module Consistency {
 
     import opened Paxos_protocol
     import opened Auxiliary_lemmas
     import opened Invariants
-    // import opened Leader_ballot_invariants
+    import opened Leader_ballot_invariants
 
     lemma{:axiom} Quorum()
     ensures |acceptors| == 2 * F + 1
@@ -57,6 +57,27 @@ module Consistency {
         assert |s.promise_count[c]| >= F + 1;
         Nonforced_promise_2(s, c);
         SubsetSize(s.promise_count[c], (set a | a in acceptors && PMsg(s.leader_ballot[c], -1, 0) in s.pmsgs[a]));
+    }
+
+    // lemma 3 // tracing the proposed value to the original proposer
+    lemma Fresh_proposal(s: TSState, c1: Acceptor) returns (c2: Acceptor)
+    requires type_ok(s) && valid(s) && valid_leader_ballot(s)
+    requires c1 in leaders && s.leader_propose[c1] > 0
+    ensures c2 in leaders && s.leader_propose[c1] == s.leader_propose[c2] 
+    ensures s.leader_ballot[c1] >= s.leader_ballot[c2]
+    ensures |set a | a in acceptors && PMsg(s.leader_ballot[c2], -1, 0) in s.pmsgs[a]| >= F + 1
+    {
+        // use variant X to expand to two cases:
+        if s.leader_forced[c1] == 0 {
+            Majority_promise(s, c1);
+            c2 := c1;
+        } else {
+            assert s.leader_forced[c1] > 0 && s.leader_propose[c1] == s.leader_forced[c1];
+            assert (exists a, highest, value :: a in acceptors && PMsg(s.leader_ballot[c1], highest, value) in s.pmsgs[a] && highest == s.leader_forced_ballot[c1] && value == s.leader_propose[c1]);
+            // assert exists c3 :: c3 in leaders && s.leader_ballot[c3] < s.leader_ballot[c1] && s.leader_propose[c3] == s.leader_propose[c1];  
+            var c3 :| c3 in leaders && s.leader_ballot[c3] < s.leader_ballot[c1] && s.leader_propose[c3] == s.leader_propose[c1];
+            c2 := Fresh_proposal(s, c3);
+        }
     }
 
     // // the base case of lemma Min_leader_decision
@@ -111,13 +132,13 @@ module Consistency {
     /* Why do we have consistency for Paxos? Intuitively, it could be understood in the following way.
     If there is a ballot bn that is observed as having been decided with value v, then
     (1) there must be at least F + 1 acceptors promised in Step 1b that they will only reply to a ballot number greater than or equal to bn, and
-    (2) At least F+1 acceptors have sent out a confirm reply in Step 2b in response to the proposer with ballot number bn for v. 
+    (2) At least F + 1 acceptors have sent out a confirm reply in Step 2b in response to the proposer with ballot number bn for v. 
     
     Therefore, for all other ballots bn' < bn, those acceptors will not reply to the request with bn'; and for all new ballot bn'' >= bn, 
     those acceptors will reply with (bn'', highest, v) in step-1b since they have previously confirmed value v. 
     (Note they cannot all go faulty which is against our assumption) Since the leader with bn'' is honest, 
-    he will be forced in Step 2a to propose v (with bn'') if it receives at least one step-1b message with a confirmed v; 
-    He will not propose a different value unless it has not received any step-1b message with a confirmed v. 
+    it will be forced in Step 2a to propose v (with bn'') if it receives at least one step-1b message with a confirmed v; 
+    It will not propose a different value unless it has not received any step-1b message with a confirmed v. 
     (Intuitively, that value "v" should have already been confirmed by the system but it may still be waiting 
     for a proposer to "announce" it. In such a scenario, we say "v" has been "decided" by the system,
     which needs to be represented by the invariants in our consistency proof.)

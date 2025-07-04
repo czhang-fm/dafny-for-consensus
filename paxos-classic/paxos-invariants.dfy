@@ -13,7 +13,6 @@ module Invariants {
     requires type_ok(s)
     {
         // the followings are the variants that pick up basic features of the Paxos protocol
-        && s.ballot >= 0
         && (forall c :: c in leaders && (s.leader_decision[c] > 0) ==> (|s.decision_count[c]| >= F+1)) 
         && (forall c :: c in leaders && (s.leader_decision[c] > 0) ==> (s.leader_propose[c] == s.leader_decision[c]))
         && (forall c :: c in leaders && s.leader_propose[c] > 0 ==> s.leader_ballot[c] >= 0)
@@ -31,7 +30,6 @@ module Invariants {
         && (forall a, bn, bn', value :: a in acceptors && (CMsg(bn, value) in s.cmsgs[a]) && (PMsg(bn', -1, 0) in s.pmsgs[a]) ==> bn >= bn') //* invariant W
 
         // a value is proposed from c only if majority promises are collected 
-        // (used for the induction step in the proof of the lemma Min_leader_decision)
         && (forall c :: c in leaders ==> (s.leader_propose[c] > 0) ==> |s.promise_count[c]| >= F + 1) // * invariant X
         && (forall c :: c in leaders && s.leader_propose[c] > 0 ==> (
             || s.leader_forced[c] == 0 
@@ -41,12 +39,11 @@ module Invariants {
         && (forall c :: c in leaders && s.leader_forced[c] == 0 && s.leader_ballot[c] >= 0 ==> s.leader_forced_ballot[c] < s.leader_ballot[c])
         && (forall c :: c in leaders ==> (s.leader_forced[c] == 0 <==> s.leader_forced_ballot[c] == -1))
         && (forall a, bn, h, v :: a in acceptors && PMsg(bn, h, v) in s.pmsgs[a] ==> (h < 0 <==> h == -1)) // another auxiliary inv
-        && (forall c :: c in leaders ==> (s.promise_count[c] <= (set a | a in acceptors && exists h, v :: PMsg(s.leader_ballot[c], h, v) in s.pmsgs[a])))
+        && (forall c :: c in leaders ==> (s.promise_count[c] <= (set a | a in acceptors && exists h, v :: PMsg(s.leader_ballot[c], h, v) in s.pmsgs[a]))) // used in the proof of lemma 2
         // && (forall c, a, h, v :: c in leaders && a in acceptors && s.leader_forced[c] == 0 && a in s.promise_count[c] && PMsg(s.leader_ballot[c], h, v) in s.pmsgs[a] ==> (h == -1 && v == 0)) //* as lemma 1
-        // && (forall c :: c in leaders ==> (s.leader_propose[c] > 0) ==> s.leader_forced[c] == 0 ==> |set a | a in acceptors && PMsg(s.leader_ballot[c], -1, 0) in s.pmsgs[a]| >= F + 1) //* invariant Y as lemma 2
+        // && (forall c :: c in leaders ==> (s.leader_propose[c] > 0) ==> s.leader_forced[c] == 0 ==> |set a | a in acceptors && PMsg(s.leader_ballot[c], -1, 0) in s.pmsgs[a]| >= F + 1) //* invariant X' as lemma 2
         
 
-        // && (forall c :: c in leaders ==> (s.leader_forced_ballot[c] < s.leader_ballot[c]))
         // && (forall c :: c in leaders ==> s.leader_forced[c] >= 0)
         // && (forall c :: c in leaders && s.leader_propose[c] == 0 ==> s.decision_count[c] == {})
 
@@ -54,8 +51,6 @@ module Invariants {
         // && (forall a, c :: a in acceptors && c in leaders && a in s.decision_count[c] ==> 
         //     CMsg(s.leader_ballot[c], s.leader_propose[c]) in s.cmsgs[a])
         
-        // && s.ballot >= -1
-        // && (forall c :: c in leaders ==> s.leader_ballot[c] >= -1)
         // && (forall a, bn, h, v:: a in acceptors && PMsg(bn, h, v) in s.pmsgs[a] ==> bn > h)
         // && (forall c :: c in leaders && s.leader_forced[c] > 0 && s.leader_ballot[c] >= 0 ==>
         //     exists a, h, v :: a in acceptors && PMsg(s.leader_ballot[c], h, v) in s.pmsgs[a] && h < s.leader_ballot[c] && s.leader_forced[c] == v)
@@ -86,7 +81,11 @@ module Invariants {
     lemma Inv_choose_ballot(s: TSState, s': TSState, c: Acceptor)
     requires type_ok(s) && type_ok(s') && valid(s) && c in leaders && choose_ballot(s, s', c)
     ensures valid(s')
-    {}
+    {
+        // assert s.leader_ballot[c] == -1 && s'.leader_ballot[c] == s.ballot;
+        // assert forall c' :: c' in leaders ==> s.leader_ballot[c'] < s.ballot == s'.ballot - 1;
+        // assert forall c' :: c' in leaders && c' != c ==> s'.leader_ballot[c'] < s'.leader_ballot[c] == s.ballot == s'.ballot - 1;
+    }
 
     lemma Inv_receive_higher_ballot(s: TSState, s': TSState, c: Acceptor, a: Acceptor)
     requires type_ok(s) && type_ok(s') && valid(s) && c in leaders && a in acceptors && receive_higher_ballot(s, s', c, a)
