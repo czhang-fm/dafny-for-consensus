@@ -12,51 +12,48 @@ module Invariants {
     ghost predicate valid(s: TSState) /// the list of invariants for all states
     requires type_ok(s)
     {
-        // the followings are the variants that pick up basic features of the Paxos protocol to be used in the proof of the first lemma
+        // the followings are the variants that pick up basic features of the Paxos protocol
         && (forall c :: c in leaders && (s.leader_decision[c] > 0) ==> (|s.decision_count[c]| >= F+1)) 
         && (forall c :: c in leaders && (s.leader_decision[c] > 0) ==> (s.leader_propose[c] == s.leader_decision[c]))
         && (forall c :: c in leaders && s.leader_propose[c] > 0 ==> s.leader_ballot[c] >= 0)
         && (forall c :: c in leaders ==> s.promise_count[c] <= acceptors)
         && (forall a, c :: a in acceptors && c in leaders && a in s.promise_count[c] ==> (exists h, v :: PMsg(s.leader_ballot[c], h, v) in s.pmsgs[a])) // updated
         && (forall a :: a in acceptors ==> s.acceptor_state[a].value >= 0)
-//        && (forall a :: a in acceptors ==> !(PMsg(-1, -1, 0) in s.pmsgs[a])) //
 //        && (forall a :: a in acceptors ==> s.acceptor_ballot[a] <= s.acceptor_state[a].highest) //
 //        && (forall a, bn, value :: a in acceptors && CMsg(bn, value) in s.cmsgs[a] ==> bn <= s.acceptor_ballot[a]) //
 //        && (forall a :: a in acceptors && s.acceptor_ballot[a] >= 0 ==> (s.acceptor_state[a].highest >= s.acceptor_ballot[a] && s.acceptor_state[a].value > 0)) //
 
-        // // if acceptor a sends a promise to c with a highest confirmed ballot -1, then acceptor a must not have sent confirm message to any leader with a smaller ballot
-        // && (forall a, bn, bn', h, value :: a in acceptors && 0 <= bn < bn' && (CMsg(bn, value) in s.cmsgs[a]) ==> 
-        //        (!(PMsg(bn', h, 0) in s.pmsgs[a])))  //* (1) equivalent to the invariant (2)
-        // comment out the above formula at the moment ... 
         && (forall a :: a in acceptors ==> (s.acceptor_state[a].value > 0 ==> s.acceptor_state[a].highest >=0) )
         && (forall a, bn, highest, value :: a in acceptors && (PMsg(bn, highest, value) in s.pmsgs[a]) ==> (highest == -1 ==> value == 0))
         && (forall a :: a in acceptors && s.acceptor_state[a].value == 0 ==> s.cmsgs[a] == {})
         && (forall a, bn, highest, value  :: a in acceptors && (PMsg(bn, highest, value) in s.pmsgs[a]) ==> bn <= s.acceptor_state[a].highest)
-        && (forall a, bn, bn', value :: a in acceptors && (CMsg(bn, value) in s.cmsgs[a]) && (PMsg(bn', -1, 0) in s.pmsgs[a]) ==> bn >= bn') //* (2) equivalent to the invariant (1)
+        && (forall a, bn, bn', value :: a in acceptors && (CMsg(bn, value) in s.cmsgs[a]) && (PMsg(bn', -1, 0) in s.pmsgs[a]) ==> bn >= bn') //* invariant W
 
         // a value is proposed from c only if majority promises are collected 
         // (used for the induction step in the proof of the lemma Min_leader_decision)
         && (forall c :: c in leaders ==> (s.leader_propose[c] > 0) ==> |s.promise_count[c]| >= F + 1) // * invariant X
-
-        && (forall c :: c in leaders ==> s.leader_forced[c] >= 0)
-        && (forall c :: c in leaders && s.leader_propose[c] == 0 ==> s.decision_count[c] == {})
-        // && (forall a, bn, v :: a in acceptors && CMsg(bn, v) in s.cmsgs[a] ==> s.acceptor_state[a].value == v)
-        && (forall a, c :: a in acceptors && c in leaders && a in s.decision_count[c] ==> 
-            CMsg(s.leader_ballot[c], s.leader_propose[c]) in s.cmsgs[a])
-        // && (forall a, c :: a in acceptors && c in leaders && s.acceptor_state[a].value > 0 && s.leader_propose[c] > 0 ==>
-        //     s.leader_propose[c] == s.acceptor_state[a].value)
         && (forall c :: c in leaders && s.leader_propose[c] > 0 ==> (
             || s.leader_forced[c] == 0
             || (s.leader_forced[c] > 0 && s.leader_propose[c] == s.leader_forced[c])
         ))
-        && s.ballot >= -1
-        && (forall c :: c in leaders ==> s.leader_ballot[c] >= -1)
-        && (forall a, bn, h, v:: a in acceptors && PMsg(bn, h, v) in s.pmsgs[a] ==> bn > h)
-        && (forall c :: c in leaders && s.leader_forced[c] > 0 && s.leader_ballot[c] >= 0 ==>
-            exists a, h, v :: a in acceptors && PMsg(s.leader_ballot[c], h, v) in s.pmsgs[a] && h < s.leader_ballot[c] && s.leader_forced[c] == v)
+
+        // && (forall c :: c in leaders ==> (s.leader_forced_ballot[c] < s.leader_ballot[c]))
+        // && (forall c :: c in leaders ==> s.leader_forced[c] >= 0)
+        // && (forall c :: c in leaders && s.leader_propose[c] == 0 ==> s.decision_count[c] == {})
+
+        // && (forall a, bn, v :: a in acceptors && CMsg(bn, v) in s.cmsgs[a] ==> s.acceptor_state[a].value == v)
+        // && (forall a, c :: a in acceptors && c in leaders && a in s.decision_count[c] ==> 
+        //     CMsg(s.leader_ballot[c], s.leader_propose[c]) in s.cmsgs[a])
+        
+        // && s.ballot >= -1
+        // && (forall c :: c in leaders ==> s.leader_ballot[c] >= -1)
+        // && (forall a, bn, h, v:: a in acceptors && PMsg(bn, h, v) in s.pmsgs[a] ==> bn > h)
+        // && (forall c :: c in leaders && s.leader_forced[c] > 0 && s.leader_ballot[c] >= 0 ==>
+        //     exists a, h, v :: a in acceptors && PMsg(s.leader_ballot[c], h, v) in s.pmsgs[a] && h < s.leader_ballot[c] && s.leader_forced[c] == v)
 
         // if (bn, v) is confirmed, then some leader with bn has proposed v
-        && (forall bn, v, a :: a in acceptors && CMsg(bn, v) in s.cmsgs[a] && v > 0 ==> (exists c :: c in leaders && s.leader_propose[c] == v && s.leader_ballot[c] == bn)) 
+        // && (forall bn, v, a :: a in acceptors && CMsg(bn, v) in s.cmsgs[a] && v > 0 ==> (exists c :: c in leaders && s.leader_propose[c] == v && s.leader_ballot[c] == bn)) 
+
         // the following invariants are required for the induction step in the proof of lemma Min_leader_decision
         // && (forall a :: a in acceptors && s.acceptor_state[a].value > 0 ==> s.acceptor_state[a].highest >= 0)
         // && (forall a :: a in acceptors && s.acceptor_state[a].value > 0 ==> 
@@ -87,8 +84,8 @@ module Invariants {
     ensures valid(s')
     {}
 
-    lemma Inv_receive_response_1b(s: TSState, s': TSState, c: Acceptor, a: Acceptor, value: Proposal)
-    requires type_ok(s) && type_ok(s') && valid(s) && c in leaders && a in acceptors && receive_response_1b(s, s', c, a, value)
+    lemma Inv_receive_response_1b(s: TSState, s': TSState, c: Acceptor, a: Acceptor, highest: int, value: Proposal)
+    requires type_ok(s) && type_ok(s') && valid(s) && c in leaders && a in acceptors && receive_response_1b(s, s', c, a, highest, value)
     ensures valid(s')
     {}
 
