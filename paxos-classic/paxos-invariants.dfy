@@ -13,6 +13,7 @@ module Invariants {
     requires type_ok(s)
     {
         // the followings are the variants that pick up basic features of the Paxos protocol
+        && s.ballot >= 0
         && (forall c :: c in leaders && (s.leader_decision[c] > 0) ==> (|s.decision_count[c]| >= F+1)) 
         && (forall c :: c in leaders && (s.leader_decision[c] > 0) ==> (s.leader_propose[c] == s.leader_decision[c]))
         && (forall c :: c in leaders && s.leader_propose[c] > 0 ==> s.leader_ballot[c] >= 0)
@@ -33,9 +34,14 @@ module Invariants {
         // (used for the induction step in the proof of the lemma Min_leader_decision)
         && (forall c :: c in leaders ==> (s.leader_propose[c] > 0) ==> |s.promise_count[c]| >= F + 1) // * invariant X
         && (forall c :: c in leaders && s.leader_propose[c] > 0 ==> (
-            || s.leader_forced[c] == 0
+            || s.leader_forced[c] == 0 
             || (s.leader_forced[c] > 0 && s.leader_propose[c] == s.leader_forced[c])
         ))
+        && (forall c, a:: c in leaders && a in acceptors && a in s.promise_count[c] ==> (exists h, v :: PMsg(s.leader_ballot[c], h, v) in s.pmsgs[a] && h <= s.leader_forced_ballot[c]))
+        // && (forall c :: c in leaders && s.leader_forced[c] == 0 && s.leader_ballot[c] >= 0 ==> s.leader_forced_ballot[c] < s.leader_ballot[c])
+        // && (forall c, a :: c in leaders && a in acceptors && s.leader_forced[c] == 0 && a in s.promise_count[c] ==> PMsg(s.leader_ballot[c], -1, 0) in s.pmsgs[a])
+        // && (forall c :: c in leaders ==> (s.leader_propose[c] > 0) ==> s.leader_forced[c] == 0 ==> |set a | a in acceptors && PMsg(s.leader_ballot[c], -1, 0) in s.pmsgs[a]| >= F + 1) //* invariant Y
+        
 
         // && (forall c :: c in leaders ==> (s.leader_forced_ballot[c] < s.leader_ballot[c]))
         // && (forall c :: c in leaders ==> s.leader_forced[c] >= 0)
