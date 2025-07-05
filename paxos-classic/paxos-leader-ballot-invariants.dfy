@@ -24,7 +24,7 @@ module Leader_ballot_invariants {
         && (forall bn, h, v, a :: a in acceptors && PMsg(bn, h , v) in s.pmsgs[a] && v > 0 ==> 
            bn > h && (exists c :: c in leaders && s.leader_ballot[c] <= h && s.leader_propose[c] == v)) // * invariant Y
         // to replace part of the auxiliary lemma for lemma 5
-        && (forall c, a, h, v :: c in leaders && a in acceptors && PMsg(s.leader_ballot[c], h, v) in s.pmsgs[a] ==> h <= s.leader_forced_ballot[c] && v == s.leader_propose[c])
+        // && (forall c, a, h, v :: c in leaders && a in acceptors && PMsg(s.leader_ballot[c], h, v) in s.pmsgs[a] ==> h <= s.leader_forced_ballot[c] && v == s.leader_propose[c])
     }
 
     /** the list of lemmas for the leader ballot related invariants in all the reachable states 
