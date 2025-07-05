@@ -13,7 +13,7 @@ module Consistency {
     lemma{:axiom} Quorum()
     ensures |acceptors| == 2 * F + 1
 
-    lemma GetAcceptor<T>(A: set<Acceptor>, B: set<Acceptor>) returns (a: Acceptor)
+    lemma GetAcceptor(A: set<Acceptor>, B: set<Acceptor>) returns (a: Acceptor)
     requires A <= acceptors && |A| >= 1
     requires B <= acceptors && |B| >= 1
     requires |A| + |B| > 2 * F + 1
@@ -48,7 +48,7 @@ module Consistency {
         }
 
     }
-    // lemma 2 //* invariant Y as lemma 2
+    // lemma 2: invariant Y as lemma 2
     lemma Majority_promise(s: TSState, c: Acceptor)
     requires type_ok(s) && valid(s)
     requires c in leaders && s.leader_forced[c] == 0 && s.leader_propose[c] > 0
@@ -59,7 +59,7 @@ module Consistency {
         SubsetSize(s.promise_count[c], (set a | a in acceptors && PMsg(s.leader_ballot[c], -1, 0) in s.pmsgs[a]));
     }
 
-    // lemma 3 // tracing the proposed value to the original proposer
+    // lemma 3: tracing the proposed value to the original proposer
     lemma Fresh_proposal(s: TSState, c1: Acceptor) returns (c2: Acceptor)
     requires type_ok(s) && valid(s) && valid_leader_ballot(s)
     requires c1 in leaders && s.leader_propose[c1] > 0
@@ -80,47 +80,52 @@ module Consistency {
             c2 := Fresh_proposal(s, c3);
         }
     }
+    // lemma 4: if a leader proposes an original value, then it must be the first proposal
+    lemma Fresh_proposal_unique(s: TSState, c1: Acceptor, c2: Acceptor)
+    requires type_ok(s) && valid(s) 
+    requires c1 in leaders && c2 in leaders && s.leader_propose[c1] > 0
+    requires |set a | a in acceptors && PMsg(s.leader_ballot[c1], -1, 0) in s.pmsgs[a]| >= F + 1
+    requires s.leader_ballot[c2] < s.leader_ballot[c1]
+    ensures |set a | a in acceptors && CMsg(s.leader_ballot[c2], s.leader_propose[c2]) in s.cmsgs[a]| < F + 1
+    {
+        if |set a | a in acceptors && CMsg(s.leader_ballot[c2], s.leader_propose[c2]) in s.cmsgs[a]| >= F + 1 {
+            Quorum();
+            var a := GetAcceptor((set a | a in acceptors && CMsg(s.leader_ballot[c2], s.leader_propose[c2]) in s.cmsgs[a]), set a | a in acceptors && PMsg(s.leader_ballot[c1], -1, 0) in s.pmsgs[a]);
+            // assert false;
+        }
+    } 
+    // auxiliary lemma for lemma 5:
+    lemma Majority_promise_2(s: TSState, c: Acceptor)
+    requires type_ok(s) && valid(s)
+    requires c in leaders && s.leader_forced[c] > 0 && s.leader_propose[c] > 0
+    ensures |set a | a in acceptors && (exists h, v :: PMsg(s.leader_ballot[c], h, v) in s.pmsgs[a])| >= F + 1
+    // ensures forall a, h, v :: a in acceptors && PMsg(s.leader_ballot[c], h, v) in s.pmsgs[a] ==> h <= s.leader_forced_ballot[c] && v == s.leader_propose[c]
+    // ensures exists a, h, v :: a in acceptors && PMsg(s.leader_ballot[c], h, v) in s.pmsgs[a] ==> h == s.leader_forced_ballot[c] && v == s.leader_propose[c]
+    {
+        assert |s.promise_count[c]| >= F + 1;
+        SubsetSize(s.promise_count[c], (set a | a in acceptors && exists h, v :: PMsg(s.leader_ballot[c], h, v) in s.pmsgs[a]));
+        //
+    }
 
-    // // the base case of lemma Min_leader_decision
-    // lemma Same_ballot_leaders(s: TSState, c1: Acceptor, c2: Acceptor)
-    // requires type_ok(s) && valid(s) && valid_leader_ballot(s)
-    // requires c1 in leaders && c2 in leaders
-    // requires s.leader_ballot[c1] == s.leader_ballot[c2] >= 0
-    // ensures c1 == c2
-    // {}
-    // // selecting a leader with the same proposal but a smaller ballot number in the induction step of lemma Min_leader_decision
-    // lemma Select_leader_smaller_ballot(s: TSState, c1: Acceptor) returns (c2: Acceptor)
-    // requires type_ok(s) && valid(s) && c1 in leaders
-    // requires s.leader_propose[c1] > 0 && |s.promise_count[c1]| <= F
-    // ensures c2 in leaders && s.leader_ballot[c2] < s.leader_ballot[c1] && s.leader_propose[c2] == s.leader_propose[c1]
-    // {
-    //     c2 :| c2 in leaders && s.leader_ballot[c2] < s.leader_ballot[c1] && s.leader_propose[c2] == s.leader_propose[c1];
-    // }
-
-    // lemma Min_leader_decision(s: TSState, c1: Acceptor, c2: Acceptor)
-    // requires type_ok(s) && valid(s) && valid_leader_ballot(s)
-    // requires c1 in leaders && c2 in leaders
-    // requires s.leader_ballot[c1] <= s.leader_ballot[c2]
-    // requires s.leader_propose[c1] > 0 && s.leader_propose[c2] > 0
-    //     && (|set a | a in acceptors && CMsg(s.leader_ballot[c1], s.leader_propose[c1]) in s.cmsgs[a]| >= F + 1)
-    // requires forall c :: c in leaders  && s.leader_ballot[c] < s.leader_ballot[c1] ==> 
-    //     (|set a | a in acceptors && CMsg(s.leader_ballot[c], s.leader_propose[c]) in s.cmsgs[a]| <= F)
+    // lemma 5: if a value is "chosen" for a leader, than all follow up leaders may only propose that value
+    // lemma X(s: TSState, c1: Acceptor, c2: Acceptor)
+    // requires type_ok(s) && valid(s) 
+    // requires c1 in leaders && c2 in leaders && s.leader_propose[c2] > 0
+    // requires s.leader_ballot[c1] < s.leader_ballot[c2]
+    // requires |set a | a in acceptors && CMsg(s.leader_ballot[c1], s.leader_propose[c1]) in s.cmsgs[a]| >= F + 1 // v1 from c1 is chosen
     // ensures s.leader_propose[c1] == s.leader_propose[c2]
-    // //invariant s.leader_ballot[1] <= s.leader_ballot[2]
-    // decreases s.leader_ballot[c2] - s.leader_ballot[c1]
     // {
-    //     if s.leader_ballot[c2] == s.leader_ballot[c1]{
-    //         // base case: when c2 == c1, then their proposal should be the same
-    //         // assert c1 == c2;
-    //         Same_ballot_leaders(s, c1, c2);
-    //     } else { 
-    //         // induction step:
-    //         //assert s.leader_ballot[c2] > s.leader_ballot[c1];
-    //         Conflict_confirm_promise(s, c1, c2); // rule out the first case of invariant X
-    //         //assert exists c :: c in leaders && s.leader_ballot[c] < s.leader_ballot[c2] && s.leader_propose[c] == s.leader_propose[c2];
-    //         //var c3 :| c3 in leaders && s.leader_ballot[c3] < s.leader_ballot[c2] && s.leader_propose[c3] == s.leader_propose[c2]; // this is from the second case of invariant X and invariant Y
-    //         var c3 := Select_leader_smaller_ballot(s, c2);
-    //         Min_leader_decision(s, c1, c3);
+    //     if s.leader_forced[c2] == 0 {
+    //         // the nonforce case: impossible
+    //         Majority_promise(s, c2);
+    //         assert |set a | a in acceptors && PMsg(s.leader_ballot[c2], -1, 0) in s.pmsgs[a]| >= F + 1;
+    //         Fresh_proposal_unique(s, c2, c1);
+    //         assert |set a | a in acceptors && CMsg(s.leader_ballot[c1], s.leader_propose[c1]) in s.cmsgs[a]| < F + 1;
+    //         assert false;
+    //     } else { //the force case:
+    //         assert s.leader_forced[c2] > 0 && s.leader_propose[c2] == s.leader_forced[c2];
+    //         assert |set a | a in acceptors && exists h, v :: PMsg(s.leader_ballot[c2], h, v) in s.pmsgs[a]| >= F + 1;
+    //         //
     //     }
     // }
 

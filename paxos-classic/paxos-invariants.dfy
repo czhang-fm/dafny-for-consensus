@@ -42,32 +42,6 @@ module Invariants {
         && (forall c :: c in leaders ==> (s.promise_count[c] <= (set a | a in acceptors && exists h, v :: PMsg(s.leader_ballot[c], h, v) in s.pmsgs[a]))) // used in the proof of lemma 2
         // && (forall c, a, h, v :: c in leaders && a in acceptors && s.leader_forced[c] == 0 && a in s.promise_count[c] && PMsg(s.leader_ballot[c], h, v) in s.pmsgs[a] ==> (h == -1 && v == 0)) //* as lemma 1
         // && (forall c :: c in leaders ==> (s.leader_propose[c] > 0) ==> s.leader_forced[c] == 0 ==> |set a | a in acceptors && PMsg(s.leader_ballot[c], -1, 0) in s.pmsgs[a]| >= F + 1) //* invariant X' as lemma 2
-        
-
-        // && (forall c :: c in leaders ==> s.leader_forced[c] >= 0)
-        // && (forall c :: c in leaders && s.leader_propose[c] == 0 ==> s.decision_count[c] == {})
-
-        // && (forall a, bn, v :: a in acceptors && CMsg(bn, v) in s.cmsgs[a] ==> s.acceptor_state[a].value == v)
-        // && (forall a, c :: a in acceptors && c in leaders && a in s.decision_count[c] ==> 
-        //     CMsg(s.leader_ballot[c], s.leader_propose[c]) in s.cmsgs[a])
-        
-        // && (forall a, bn, h, v:: a in acceptors && PMsg(bn, h, v) in s.pmsgs[a] ==> bn > h)
-        // && (forall c :: c in leaders && s.leader_forced[c] > 0 && s.leader_ballot[c] >= 0 ==>
-        //     exists a, h, v :: a in acceptors && PMsg(s.leader_ballot[c], h, v) in s.pmsgs[a] && h < s.leader_ballot[c] && s.leader_forced[c] == v)
-
-        // if (bn, v) is confirmed, then some leader with bn has proposed v
-        // && (forall bn, v, a :: a in acceptors && CMsg(bn, v) in s.cmsgs[a] && v > 0 ==> (exists c :: c in leaders && s.leader_propose[c] == v && s.leader_ballot[c] == bn)) 
-
-        // the following invariants are required for the induction step in the proof of lemma Min_leader_decision
-        // && (forall a :: a in acceptors && s.acceptor_state[a].value > 0 ==> s.acceptor_state[a].highest >= 0)
-        // && (forall a :: a in acceptors && s.acceptor_state[a].value > 0 ==> 
-        //    (exists c :: c in leaders && s.leader_propose[c] == s.acceptor_state[a].value && s.leader_ballot[c] <= s.acceptor_state[a].highest))
-        // && (forall bn, h, v, a :: a in acceptors && PMsg(bn, h , v) in s.pmsgs[a] && v > 0 ==> 
-        //    bn > h && (exists c :: c in leaders && s.leader_ballot[c] <= h && s.leader_propose[c] == v)) // * invariant Y
-        // && (forall bn, h, v, a :: a in acceptors && PMsg(bn, h , v) in s.pmsgs[a] && v > 0 ==> 
-        //     bn > h && (exists bn' :: CMsg(bn', v) in s.cmsgs[a] && bn' <= h))
-        // && (forall bn, h, v, a :: a in acceptors && PMsg(bn, h , v) in s.pmsgs[a] && v > 0 ==>
-        //     bn > h && s.acceptor_state[a].value > 0)
     }
 
     /** the list of lemmas to be checked for invariants in all the reachable states 
