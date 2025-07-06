@@ -41,7 +41,7 @@ module Invariants {
         && (forall a, bn, h, v :: a in acceptors && PMsg(bn, h, v) in s.pmsgs[a] ==> (h < 0 <==> h == -1)) // another auxiliary inv
         && (forall c :: c in leaders ==> (s.promise_count[c] <= (set a | a in acceptors && exists h, v :: PMsg(s.leader_ballot[c], h, v) in s.pmsgs[a]))) // used in the proof of lemma 2
         // && (forall c, a, h, v :: c in leaders && a in acceptors && s.leader_forced[c] == 0 && a in s.promise_count[c] && PMsg(s.leader_ballot[c], h, v) in s.pmsgs[a] ==> (h == -1 && v == 0)) //* as lemma 1
-        // && (forall c :: c in leaders ==> (s.leader_propose[c] > 0) ==> s.leader_forced[c] == 0 ==> |set a | a in acceptors && PMsg(s.leader_ballot[c], -1, 0) in s.pmsgs[a]| >= F + 1) //* invariant X' as lemma 2
+        // && (forall c :: c in leaders ==> (s.leader_propose[c] > 0) ==> s.leader_forced[c] == 0 ==> |set a | a in acceptors && PMsg(s.leader_ballot[c], -1, 0) in s.pmsgs[a]| >= F + 1) //* invariant Y as lemma 2
     }
 
     /** the list of lemmas to be checked for invariants in all the reachable states 

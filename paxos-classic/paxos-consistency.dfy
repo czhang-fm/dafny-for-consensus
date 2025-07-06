@@ -108,12 +108,14 @@ module Consistency {
     }
 
     // lemma 5: if a value is "chosen" for a leader, than all follow up leaders may only propose that value
-    // lemma X(s: TSState, c1: Acceptor, c2: Acceptor)
-    // requires type_ok(s) && valid(s) 
-    // requires c1 in leaders && c2 in leaders && s.leader_propose[c2] > 0
-    // requires s.leader_ballot[c1] < s.leader_ballot[c2]
-    // requires |set a | a in acceptors && CMsg(s.leader_ballot[c1], s.leader_propose[c1]) in s.cmsgs[a]| >= F + 1 // v1 from c1 is chosen
-    // ensures s.leader_propose[c1] == s.leader_propose[c2]
+    // This can be proved by induction for all c2 with a ballot number larger than or equal to c1 and s.leader_propose[c2] > 2
+    lemma X(s: TSState, c1: Acceptor, c2: Acceptor)
+    requires type_ok(s) && valid(s) 
+    requires c1 in leaders && c2 in leaders && s.leader_propose[c2] > 0
+    requires s.leader_ballot[c1] <= s.leader_ballot[c2]
+    requires |set a | a in acceptors && CMsg(s.leader_ballot[c1], s.leader_propose[c1]) in s.cmsgs[a]| >= F + 1 // v1 from c1 is chosen
+    ensures s.leader_propose[c1] == s.leader_propose[c2]
+
     // {
     //     if s.leader_forced[c2] == 0 {
     //         // the nonforce case: impossible
