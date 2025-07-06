@@ -222,6 +222,7 @@ module Paxos_protocol {
   requires type_ok(s) && type_ok(s') && c in leaders && a in acceptors && value > 0
   {
     && s.leader_ballot[c] >= s.acceptor_state[a].highest // this is possible as some previous messages may be lost
+    && s.leader_ballot[c] >= 0
     && s.leader_propose[c] == value 
     // && (s.acceptor_state[a].value == 0 || s.acceptor_state[a].value == value) // only accept agreed value, not reasonable 
     && s'.acceptor_state == s.acceptor_state[a := AState(s.leader_ballot[c], value)]

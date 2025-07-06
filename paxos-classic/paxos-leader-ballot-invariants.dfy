@@ -23,8 +23,16 @@ module Leader_ballot_invariants {
            (exists c :: c in leaders && s.leader_propose[c] == s.acceptor_state[a].value && s.leader_ballot[c] <= s.acceptor_state[a].highest))
         && (forall bn, h, v, a :: a in acceptors && PMsg(bn, h , v) in s.pmsgs[a] && v > 0 ==> 
            bn > h && (exists c :: c in leaders && s.leader_ballot[c] <= h && s.leader_propose[c] == v)) // * invariant Y
+        // && (forall bn, h, v, a :: a in acceptors && PMsg(bn, h , v) in s.pmsgs[a] && v > 0 && h >= 0 ==> 
+        //    bn > h && (exists c :: c in leaders && s.leader_ballot[c] == h && s.leader_propose[c] == v)) // * slightly stronger than the above inv Y+
         // to replace part of the auxiliary lemma for lemma 5
         // && (forall c, a, h, v :: c in leaders && a in acceptors && PMsg(s.leader_ballot[c], h, v) in s.pmsgs[a] ==> h <= s.leader_forced_ballot[c] && v == s.leader_propose[c])
+        // && (forall a :: a in acceptors && s.acceptor_state[a].value > 0 ==> (exists c, v :: c in leaders && s.leader_ballot[c] >= 0 && CMsg(s.leader_ballot[c], v) in s.cmsgs[a]))
+        // && (forall a :: a in acceptors ==> s.acceptor_state[a].value >= 0 && s.acceptor_state[a].highest >= -1)
+        // && (forall a, bn, highest, value :: a in acceptors && (PMsg(bn, highest, value) in s.pmsgs[a]) ==> (highest >= -1 && value >= 0))
+        // // && (forall a, bn, highest, value :: a in acceptors && (PMsg(bn, highest, value) in s.pmsgs[a]) ==> (highest == -1 <==> value == 0))
+        // && (forall c :: c in leaders ==> (s.leader_forced[c] >= 0 && s.leader_forced_ballot[c] >= -1))
+        // // && (forall c :: c in leaders ==> (s.leader_forced[c] > 0 <==> s.leader_forced_ballot[c] > -1))
     }
 
     /** the list of lemmas for the leader ballot related invariants in all the reachable states 

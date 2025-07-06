@@ -94,7 +94,7 @@ module Consistency {
             // assert false;
         }
     } 
-    // auxiliary lemma for lemma 5:
+    // auxiliary lemma for lemma 5: may not be useful ???
     lemma Majority_promise_2(s: TSState, c: Acceptor)
     requires type_ok(s) && valid(s)
     requires c in leaders && s.leader_forced[c] > 0 && s.leader_propose[c] > 0
@@ -110,26 +110,40 @@ module Consistency {
     // lemma 5: if a value is "chosen" for a leader, than all follow up leaders may only propose that value
     // This can be proved by induction for all c2 with a ballot number larger than or equal to c1 and s.leader_propose[c2] > 2
     lemma X(s: TSState, c1: Acceptor, c2: Acceptor)
-    requires type_ok(s) && valid(s) 
+    requires type_ok(s) && valid(s) && valid_leader_ballot(s)
     requires c1 in leaders && c2 in leaders && s.leader_propose[c2] > 0
     requires s.leader_ballot[c1] <= s.leader_ballot[c2]
     requires |set a | a in acceptors && CMsg(s.leader_ballot[c1], s.leader_propose[c1]) in s.cmsgs[a]| >= F + 1 // v1 from c1 is chosen
-    ensures s.leader_propose[c1] == s.leader_propose[c2]
-
+    // ensures s.leader_propose[c1] == s.leader_propose[c2]
     // {
-    //     if s.leader_forced[c2] == 0 {
-    //         // the nonforce case: impossible
-    //         Majority_promise(s, c2);
-    //         assert |set a | a in acceptors && PMsg(s.leader_ballot[c2], -1, 0) in s.pmsgs[a]| >= F + 1;
-    //         Fresh_proposal_unique(s, c2, c1);
-    //         assert |set a | a in acceptors && CMsg(s.leader_ballot[c1], s.leader_propose[c1]) in s.cmsgs[a]| < F + 1;
-    //         assert false;
-    //     } else { //the force case:
-    //         assert s.leader_forced[c2] > 0 && s.leader_propose[c2] == s.leader_forced[c2];
-    //         assert |set a | a in acceptors && exists h, v :: PMsg(s.leader_ballot[c2], h, v) in s.pmsgs[a]| >= F + 1;
-    //         //
+    //     if s.leader_ballot[c1] == s.leader_ballot[c2]{
+    //         // base case: trivial
+    //         assert s.leader_propose[c1] == s.leader_propose[c2];
+    //     } else {
+    //         assert s.leader_ballot[c1] <= s.leader_ballot[c2] - 1;
+    //         // induction step:
+    //         if s.leader_forced[c2] == 0 {
+    //             // the nonforce case: impossible
+    //             Majority_promise(s, c2);
+    //             assert |set a | a in acceptors && PMsg(s.leader_ballot[c2], -1, 0) in s.pmsgs[a]| >= F + 1;
+    //             Fresh_proposal_unique(s, c2, c1);
+    //             assert |set a | a in acceptors && CMsg(s.leader_ballot[c1], s.leader_propose[c1]) in s.cmsgs[a]| < F + 1;
+    //             assert false;
+    //         } else { //the force case:
+    //             assert s.leader_forced[c2] > 0 && s.leader_propose[c2] == s.leader_forced[c2];
+    //             assert |s.promise_count[c2]| >= F + 1;
+    //             // now we need to show at least an acceptor in s.promise_cout[c2] that has confirmed s.leader_ballot[c1]
+    //             var a := GetAcceptor((set a | a in acceptors && CMsg(s.leader_ballot[c1], s.leader_propose[c1]) in s.cmsgs[a]), s.promise_count[c2]);
+    //             // Majority_promise_2(s, c2);
+    //             // assert |set a | a in acceptors && (exists h, v :: PMsg(s.leader_ballot[c2], h, v) in s.pmsgs[a])| >= F + 1;
+    //             // now we need to show at least an acceptor in PMsg(c2, h, v) has confirmed s.leader_ballot[c1]
+    //             // var a := GetAcceptor((set a | a in acceptors && CMsg(s.leader_ballot[c1], s.leader_propose[c1]) in s.cmsgs[a]), (set a | a in acceptors && (exists h, v :: PMsg(s.leader_ballot[c2], h, v) in s.pmsgs[a])));
+    //             assert exists h, v :: PMsg(s.leader_ballot[c2], h, v) in s.pmsgs[a] && h >= s.leader_ballot[c1];
+    //             //
+    //         }
     //     }
     // }
+
 
     lemma Consistency(s: TSState, c1: Acceptor, c2: Acceptor)
     requires type_ok(s) && valid(s)
