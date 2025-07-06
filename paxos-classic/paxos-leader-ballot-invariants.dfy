@@ -1,14 +1,16 @@
 include "paxos-classic.dfy"
 include "auxiliary.dfy"
+// include "paxos-invariants.dfy"
 
 module Leader_ballot_invariants {
 
     import opened Paxos_protocol
     import opened Auxiliary_lemmas
+    // import opened Invariants
 
     // the following are invariants used in the proof of lemma Same_ballot_leaders (split from the main body of invariants)
     ghost predicate valid_leader_ballot(s: TSState) 
-    requires type_ok(s)
+    requires type_ok(s) //&& valid(s)
     {
         // invariants for the proof of lemma 3
         && s.ballot >= 0
@@ -24,8 +26,14 @@ module Leader_ballot_invariants {
         // && (forall bn, h, v, a :: a in acceptors && PMsg(bn, h , v) in s.pmsgs[a] && v > 0 ==> 
         //    bn > h && (exists c :: c in leaders && s.leader_ballot[c] <= h && s.leader_propose[c] == v)) // * invariant Y
         // && (forall a :: a in acceptors && s.acceptor_state[a].value > 0 ==> (exists c :: c in leaders && s.acceptor_state[a].value == s.leader_propose[c] && s.acceptor_state[a].highest == s.leader_ballot[c]))// this does not hold
-        && (forall bn, h, v, a :: a in acceptors && PMsg(bn, h , v) in s.pmsgs[a] && v > 0 ==> //(&& h >= 0) ==> 
-           bn > h && (exists c :: c in leaders && s.leader_ballot[c] == h && s.leader_propose[c] == v)) // * slightly stronger than the above * invariant Z
+        && (forall a :: a in acceptors ==> s.acceptor_ballot[a] < s.ballot)
+        //* && (forall c :: c in leaders ==> s.leader_forced[c] >= 0 && s.leader_forced_ballot[c] >= -1)
+        // This will need a trigger && (forall c, bn :: c in leaders && s.leader_ballot[c] == bn ==> bn < s.ballot ) //(bn < |s.ballot_mapping|))
+        //* && (forall a, c :: a in acceptors && c in leaders && s.leader_ballot[c] == s.acceptor_ballot[a] >= 0 && s.leader_propose[c] > 0 ==> s.leader_propose[c] == s.acceptor_state[a].value)
+        // && (forall a :: a in acceptors && s.acceptor_ballot[a] >= 0 ==> s.acceptor_ballot[a] < s.ballot && (exists c :: c in leaders && c == s.ballot_mapping[s.acceptor_ballot[a]]))
+        // && (forall a :: a in acceptors ==> s.leader_ballot[s.ballot_mapping[s.acceptor_ballot[a]]] == s.acceptor_state[a].value)
+        // && (forall bn, h, v, a :: a in acceptors && PMsg(bn, h , v) in s.pmsgs[a] && v > 0 ==> //(&& h >= 0) ==> 
+        //    bn > h && (exists c :: c in leaders && s.leader_ballot[c] == h && s.leader_propose[c] == v)) // * slightly stronger than the above * invariant Z
         // to replace part of the auxiliary lemma for lemma 5
         // && (forall c, a, h, v :: c in leaders && a in acceptors && PMsg(s.leader_ballot[c], h, v) in s.pmsgs[a] ==> h <= s.leader_forced_ballot[c] && v == s.leader_propose[c])
         // && (forall a :: a in acceptors && s.acceptor_state[a].value > 0 ==> (exists c, v :: c in leaders && s.leader_ballot[c] >= 0 && CMsg(s.leader_ballot[c], v) in s.cmsgs[a]))
