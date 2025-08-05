@@ -19,6 +19,11 @@ module AcceptorInvariants {
         // && (forall bn :: 0 <= bn <= s.ballot - 1 ==> (exists c :: c in leaders && s.leader_ballot[c] == bn))
         && (|s.ballot_mapping| == s.ballot)
         && (forall bn :: 0 <= bn < s.ballot ==> s.ballot_mapping[bn] in leaders && s.leader_ballot[s.ballot_mapping[bn]] == bn)
+        // we need to relate PMsg(bn1, bn, v) with v>0 to the actual leader who proposed b
+        && (forall a :: a in acceptors && s.acceptor_state[a].value > 0 ==> 
+            (exists c :: c in leaders && s.leader_propose[c] == s.acceptor_state[a].value && s.leader_ballot[c] == s.acceptor_state[a].confirmed))
+        && (forall bn1, bn, v, a :: a in acceptors && PMsg(bn1, bn, v) in s.pmsgs[a] && v>0 ==> 
+            (exists c :: c in leaders && s.leader_ballot[c] == bn && s.leader_propose[c] == v)) // invariant for lemma 8
     }
 
     /** the list of lemmas to be checked for invariants in all the reachable states 
@@ -32,7 +37,9 @@ module AcceptorInvariants {
     lemma Inv_choose_ballot(s: TSState, s': TSState, c: Acceptor)
     requires type_ok(s) && type_ok(s') && valid(s) && c in leaders && choose_ballot(s, s', c) && valid_acceptor(s)
     ensures valid_acceptor(s')
-    {}
+    {
+        assert forall a :: a in acceptors ==> s.pmsgs[a] == s'.pmsgs[a];
+    }
 
     lemma Inv_receive_higher_ballot(s: TSState, s': TSState, c: Acceptor, a: Acceptor) 
     requires type_ok(s) && type_ok(s') && valid(s) && c in leaders && a in acceptors && receive_higher_ballot(s, s', c, a) && valid_acceptor(s)
@@ -58,7 +65,10 @@ module AcceptorInvariants {
     requires type_ok(s) && type_ok(s') && valid(s) && c in leaders && a in acceptors && value > 0
     requires confirm_ballot_2b(s, s', c, a, value) && valid_acceptor(s)
     ensures valid_acceptor(s')
-    {}
+    {
+        // assert s'.acceptor_state[a].value == s'.leader_propose[c];
+        // assert s'.acceptor_state[a].confirmed == s'.leader_ballot[c];
+    }
 
     lemma Inv_receive_confirm_2b(s: TSState, s': TSState, c: Acceptor, a: Acceptor, bn: int, value: Proposal)
     requires type_ok(s) && type_ok(s') && valid(s) && c in leaders && a in acceptors && value > 0

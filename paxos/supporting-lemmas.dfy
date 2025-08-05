@@ -120,7 +120,8 @@ module SupportingLemmas {
         assert bn < s.ballot;
         c3 := s.ballot_mapping[bn];
     }
-    // we prove the following auxiliary lemma first before the proof of lemma 8
+    // we prove the following auxiliary lemmas first before the proof of lemma 8
+    
     lemma ForceCaseLargestBallot(s: TSState, c1: Acceptor) returns (c2 : Acceptor)
     requires type_ok(s) && valid(s) && valid_acceptor(s)
     requires c1 in leaders && s.leader_propose[c1] > 0 && s.leader_forced[c1] > 0
