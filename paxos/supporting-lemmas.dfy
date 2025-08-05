@@ -120,8 +120,24 @@ module SupportingLemmas {
         assert bn < s.ballot;
         c3 := s.ballot_mapping[bn];
     }
+    // we prove the following auxiliary lemma first before the proof of lemma 8
+    lemma ForceCaseLargestBallot(s: TSState, c1: Acceptor) returns (c2 : Acceptor)
+    requires type_ok(s) && valid(s) && valid_acceptor(s)
+    requires c1 in leaders && s.leader_propose[c1] > 0 && s.leader_forced[c1] > 0
+    ensures c2 in leaders
+    ensures forall a, bn, v:: a in acceptors && PMsg(s.leader_ballot[c1], bn, v) in s.pmsgs[a] && a in s.promise_count[c1] ==> bn <= s.leader_ballot[c2]
+    ensures s.leader_forced[c1] == s.leader_propose[c2]
+    // {}
+
     // lemma 8: the force case of lemma X && the leader c1 have PMsg(bn1, bn, v) then it must propose the same value as another proposer with a ballot at least bn
-    lemma ForceCasePropose(s: TSState, c1: Acceptor) returns (c2 : Acceptor)
+    lemma ForceCasePropose(s: TSState, c1: Acceptor, bn: int) returns (c2 : Acceptor)
+    requires type_ok(s) && valid(s) && valid_acceptor(s)
+    requires c1 in leaders && s.leader_propose[c1] > 0 && s.leader_forced[c1] > 0
+    requires exists a, v:: a in acceptors && PMsg(s.leader_ballot[c1], bn, v) in s.pmsgs[a] && a in s.promise_count[c1]
+    ensures c2 in leaders && bn <= s.leader_ballot[c2] && s.leader_propose[c1] == s.leader_propose[c2]
+    // {
+    //     assert s.leader_propose[c1] == s.leader_forced[c1]; 
+    // }
 
     // lemma 6': if a leader proposes a value in the forced case, then that value must be from another leader with a smaller ballot (ok, but may not be used)
     lemma leader_proposal_forced(s: TSState, c: Acceptor) returns (c': Acceptor)
@@ -135,24 +151,5 @@ module SupportingLemmas {
         c' :| c' in leaders && s.leader_ballot[c'] < s.leader_ballot[c] && s.leader_ballot[c']==s.leader_forced_ballot[c] && s.leader_propose[c'] == s.leader_propose[c];
     }
 
-    // lemma 7: the force case of lemma X && the leader c2 must have a ballot at least as large as c1
-    // lemma NonforceLarger(s: TSState, c1: Acceptor, c2: Acceptor)
-    // requires type_ok(s) && valid(s)
-    // requires c1 in leaders && c2 in leaders && s.leader_propose[c1] > 0 && s.leader_propose[c2] > 0
-    // requires |set a | a in acceptors && CMsg(s.leader_ballot[c1], s.leader_propose[c1]) in s.cmsgs[a]| >= F + 1
-    // requires forall c :: c in leaders && s.leader_ballot[c] < s.leader_ballot[c1] ==> (|set a | a in acceptors && CMsg(s.leader_ballot[c], s.leader_propose[c]) in s.cmsgs[a]| <= F)
-    // ensures s.leader_ballot[c1] <= s.leader_ballot[c2]
-    // {
-    //     assert |s.promise_count[c2]| >= F + 1;
-    //     assert s.promise_count[c2] <= (set a | a in acceptors && CMsg(s.leader_ballot[c2], s.leader_propose[c2]) in s.cmsgs[a]);
-    // }
-    // {
-    //     if s.leader_ballot[c2] < s.leader_ballot[c1]{
-    //         assert |s.promise_count[c2]| >= F + 1;
-    //         assert (set a | a in acceptors && CMsg(s.leader_ballot[c2], s.leader_propose[c2]) in s.cmsgs[a]) <= s.promise_count[c2];
-    //         SubsetSize((set a | a in acceptors && CMsg(s.leader_ballot[c2], s.leader_propose[c2]) in s.cmsgs[a]), s.promise_count[c2]);
-    //         assert false;
-    //     }
-    // }
 
 }
