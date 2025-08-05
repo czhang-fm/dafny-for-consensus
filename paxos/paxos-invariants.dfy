@@ -39,6 +39,7 @@ module Invariants {
         // if two leaders have the same non-zero ballot, then they are the same leader, used in the base case of lemma X
         && (forall c1, c2 :: c1 in leaders && c2 in leaders && s.leader_ballot[c1] == s.leader_ballot[c2] >= 0 ==> c1 == c2 )
         && (forall c :: c in leaders ==> s.leader_ballot[c] < s.ballot)
+        // && (forall bn :: 0 <= bn <= s.ballot - 1 ==> s.leader_ballot[s.ballot_mapping[bn]] == bn)
     }
 
     /** the list of lemmas to be checked for invariants in all the reachable states 

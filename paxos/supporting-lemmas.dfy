@@ -2,6 +2,7 @@ include "paxos-classic.dfy"
 include "auxiliary.dfy"
 include "paxos-invariants.dfy"
 include "promise-invariants.dfy"
+include "acceptor-invariants.dfy"
 
 module SupportingLemmas {
 
@@ -9,6 +10,7 @@ module SupportingLemmas {
     import opened Auxiliary_lemmas
     import opened Invariants
     import opened PromiseInvariants
+    import opened AcceptorInvariants
 
     lemma{:axiom} Quorum()
     ensures |acceptors| == 2 * F + 1
@@ -93,12 +95,35 @@ module SupportingLemmas {
     requires s.leader_ballot[c1] >= 0 && s.leader_ballot[c2] == s.leader_ballot[c1]
     ensures c1 == c2
     {}
-    // lemma 6: if an acceptor confirmed CMsg(bn1, v1) and later promised PMsg(bn2, bn, v2), then bn1 <= bn
+    // lemma 6: if an acceptor confirmed CMsg(bn1, v1) and later promised PMsg(bn2, bn, v2), i.e., bn1 < bn2, then bn1 <= bn
+    lemma AcceptorConfirmPromise(s: TSState, a: Acceptor, c1: Acceptor, c2: Acceptor, bn: int, v1: Proposal, v2: Proposal)
+    requires type_ok(s) && valid(s) && valid_acceptor(s)
+    requires a in acceptors && c1 in leaders && c2 in leaders && s.leader_ballot[c1] < s.leader_ballot[c2]
+    requires CMsg(s.leader_ballot[c1], v1) in s.cmsgs[a]
+    requires PMsg(s.leader_ballot[c2], bn, v2) in s.pmsgs[a]
+    ensures s.leader_ballot[c1] <= bn && bn < s.leader_ballot[c2]
+    {}
+    // lemma 7: the force case of lemma X && the leader c2 must have received a promise from another leader with a ballot at least as large as c1
+    lemma ForceCaseLarger(s: TSState, c1: Acceptor, c2: Acceptor) returns (c3 : Acceptor)
+    requires type_ok(s) && valid(s) && valid_acceptor(s)
+    requires c1 in leaders && c2 in leaders && s.leader_propose[c1] > 0 && s.leader_propose[c2] > 0
+    requires s.leader_forced[c2] > 0 && s.leader_ballot[c1] < s.leader_ballot[c2]
+    requires |set a | a in acceptors && CMsg(s.leader_ballot[c1], s.leader_propose[c1]) in s.cmsgs[a]| >= F + 1
+    ensures c3 in leaders && s.leader_ballot[c1] <= s.leader_ballot[c3] 
+    ensures exists a, v :: a in acceptors && PMsg(s.leader_ballot[c2], s.leader_ballot[c3], v) in s.pmsgs[a] && a in s.promise_count[c2]
+    {
+        assert |s.promise_count[c2]| >= F+1;
+        var a := GetAcceptor((set a | a in acceptors && CMsg(s.leader_ballot[c1], s.leader_propose[c1]) in s.cmsgs[a]), s.promise_count[c2]);
+        var v1 :| CMsg(s.leader_ballot[c1], v1) in s.cmsgs[a];
+        var bn, v2 :| PMsg(s.leader_ballot[c2], bn, v2) in s.pmsgs[a];
+        AcceptorConfirmPromise(s, a, c1, c2, bn, v1, v2); assert s.leader_ballot[c1] <= bn;
+        assert bn < s.ballot;
+        c3 := s.ballot_mapping[bn];
+    }
+    // lemma 8: the force case of lemma X && the leader c1 have PMsg(bn1, bn, v) then it must propose the same value as another proposer with a ballot at least bn
+    lemma ForceCasePropose(s: TSState, c1: Acceptor) returns (c2 : Acceptor)
 
-
-
-
-    // lemma 6': if a leader proposes a value in the forced case, then that value must be from another leader with a smaller ballot (ok, but)
+    // lemma 6': if a leader proposes a value in the forced case, then that value must be from another leader with a smaller ballot (ok, but may not be used)
     lemma leader_proposal_forced(s: TSState, c: Acceptor) returns (c': Acceptor)
     requires type_ok(s) && valid(s) && valid_promise(s)
     requires c in leaders && s.leader_propose[c] > 0
