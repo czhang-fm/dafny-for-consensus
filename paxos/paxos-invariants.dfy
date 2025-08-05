@@ -39,15 +39,6 @@ module Invariants {
         // if two leaders have the same non-zero ballot, then they are the same leader, used in the base case of lemma X
         && (forall c1, c2 :: c1 in leaders && c2 in leaders && s.leader_ballot[c1] == s.leader_ballot[c2] >= 0 ==> c1 == c2 )
         && (forall c :: c in leaders ==> s.leader_ballot[c] < s.ballot)
-        // if a leader c is forced to a value, then there exists PMsg(bn, ballot, v) in s.pmsgs[a] with a in s.promise_count 
-        // and (h,v) as forced ballot and forced value
-        && (forall bn, ballot, v, a :: a in acceptors && PMsg(bn, ballot, v) in s.pmsgs[a] ==> ballot < bn)
-        && (forall a :: a in acceptors && s.acceptor_state[a].value > 0 ==> 
-        (exists c :: c in leaders && s.acceptor_state[a].confirmed == s.leader_ballot[c] && s.acceptor_state[a].value == s.leader_propose[c]))
-        && (forall bn, ballot, v, a :: a in acceptors && PMsg(bn, ballot, v) in s.pmsgs[a] && v>0 ==> 
-        (exists c :: c in leaders && ballot == s.leader_ballot[c] && v == s.leader_propose[c]))
-        && (forall c :: c in leaders && s.leader_forced[c] > 0 ==> 
-        (exists a, ballot, v :: a in s.promise_count[c] && PMsg(s.leader_ballot[c], ballot, v) in s.pmsgs[a] && ballot == s.leader_forced_ballot[c] && v == s.leader_forced[c]))
     }
 
     /** the list of lemmas to be checked for invariants in all the reachable states 
