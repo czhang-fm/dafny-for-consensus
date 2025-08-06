@@ -38,7 +38,8 @@ module ForcedInvariants {
         c2 := s.ballot_mapping[ballot];
     }
     // lemma 7.3: to compare the leader_ballot's generated from lemma 7 and lemma 7.2 
-    // this is a failed test as it takes too much time in this assertion, which means more conditions are required.
+    // this is a failed test as it takes too much time in the assertion, which means more conditions are required.
+    // If this succeeds then we will already have lemma 7.5
     lemma ForceCaseTest(s: TSState, c1: Acceptor, c2: Acceptor) //returns (c3 : Acceptor)
     requires type_ok(s) && valid(s) && valid_acceptor(s)
     requires c1 in leaders && c2 in leaders && s.leader_propose[c1] > 0 && s.leader_propose[c2] > 0
