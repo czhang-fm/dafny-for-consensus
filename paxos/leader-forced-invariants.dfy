@@ -51,7 +51,7 @@ module ForcedInvariants {
         // assert s.leader_ballot[c3] <= s.leader_ballot[c4];
     }
 
-    // lemma 7.5: the more general case of lemma 8
+    // lemma 7.5: a more general case of lemma 8
     // lemma ForceCaseLargest(s: TSState, c1: Acceptor) returns (c2 : Acceptor) // half of the currently stalled lemma ....
     // requires type_ok(s) && valid(s) && valid_acceptor(s) && valid_promise(s)
     // requires c1 in leaders && s.leader_propose[c1] > 0 && s.leader_forced[c1] > 0

@@ -22,6 +22,8 @@ module PromiseInvariants {
         (exists a, ballot, v :: a in s.promise_count[c] && PMsg(s.leader_ballot[c], ballot, v) in s.pmsgs[a] && ballot == s.leader_forced_ballot[c] && v == s.leader_forced[c]))
         // && (forall a, c :: a in acceptors && c in leaders && s.leader_forced[c] > 0 && a in s.promise_count[c] ==>
         //     (forall bn, v :: PMsg(s.leader_ballot[c], bn, v) in s.pmsgs[a] ==> bn <= s.leader_forced_ballot[c])) // another presentation, or can we prove it as a lemma?
+        // && (forall c :: c in leaders && s.leader_forced[c] > 0 ==>
+        // (forall a, ballot, v :: a in s.promise_count[c] && PMsg(s.leader_ballot[c], ballot, v) in s.pmsgs[a] ==> ballot <= s.leader_forced_ballot[c])) // another trial
     }
 
     /** the list of lemmas to be checked for invariants in all the reachable states 
@@ -49,10 +51,16 @@ module PromiseInvariants {
     }
 
     lemma Inv_receive_response_1b(s: TSState, s': TSState, c: Acceptor, a: Acceptor, confirmed: int, value: Proposal)
-    requires type_ok(s) && type_ok(s') && valid(s) && c in leaders && a in acceptors && confirmed >= 0 && value > 0 
+    requires type_ok(s) && type_ok(s') && valid(s) && c in leaders && a in acceptors //&& confirmed >= 0 && value > 0 
     requires receive_response_1b(s, s', c, a, confirmed, value) && valid_promise(s)
     ensures valid_promise(s')
-    {}
+    {
+        assert confirmed <= s.leader_forced_ballot[c] ==> s.leader_forced_ballot == s'.leader_forced_ballot;
+        assert confirmed > s.leader_forced_ballot[c] ==> s'.leader_forced_ballot[c] == confirmed;
+        assert confirmed <= s'.leader_forced_ballot[c];
+        assert PMsg(s'.leader_ballot[c], confirmed, value) in s'.pmsgs[a];
+        assert a in s'.promise_count[c];
+    }
 
     lemma Inv_propose_value_2a(s: TSState, s': TSState, c: Acceptor, value: Proposal)
     requires  type_ok(s) && type_ok(s') && valid(s) && c in leaders && value > 0 && propose_value_2a(s, s', c, value) && valid_promise(s)
