@@ -28,6 +28,8 @@ module AcceptorInvariants {
         //     bn < s.leader_ballot[c] && bn <= s.leader_forced_ballot[c]) // invariant 2 for lemma 7.5 (bn <= s.leader_forced_ballot[c])
         // && (forall a, c :: a in acceptors && c in leaders && s.leader_forced[c] > 0 && a in s.promise_count[c] ==>
         //    (forall bn, v :: PMsg(s.leader_ballot[c], bn, v) in s.pmsgs[a] ==> bn <= s.leader_forced_ballot[c])) // another presentation, or can we prove it as a lemma
+        // Dafny cannot figure out the following set is finite : 
+        // && (forall c, bn :: c in leaders && bn in (set bn | exists a, bn, v :: a in acceptors && a in s.promise_count[c] && PMsg(s.leader_ballot[c], bn, v) in s.pmsgs[a]) ==> bn <= s.leader_forced_ballot[c])
     }
 
     /** the list of lemmas to be checked for invariants in all the reachable states 

@@ -72,7 +72,7 @@ module SupportingLemmas {
         assert forall a :: a in s.promise_count[c] ==> PMsg(s.leader_ballot[c], -1, 0) in s.pmsgs[a];
         SubsetSize(s.promise_count[c], set a | a in acceptors && PMsg(s.leader_ballot[c], -1, 0) in s.pmsgs[a]);
     }
-    // lemma 4: the nonforce case of lemma X: Given c1 & c2 both proposed with bn1 < bn2, if v1 is confirmed by majority acceptors, then v2 cannot be (freely) proposed in the "non-force" case.
+    // lemma 4: the nonforce case of lemma X (*): Given c1 & c2 both proposed with bn1 < bn2, if v1 is confirmed by majority acceptors, then v2 cannot be (freely) proposed in the "non-force" case.
     lemma NonforceX(s: TSState, c1: Acceptor, c2: Acceptor)
     requires type_ok(s) && valid(s)
     requires c1 in leaders && c2 in leaders && s.leader_propose[c1] > 0 && s.leader_propose[c2] > 0
@@ -103,7 +103,7 @@ module SupportingLemmas {
     requires PMsg(s.leader_ballot[c2], bn, v2) in s.pmsgs[a]
     ensures s.leader_ballot[c1] <= bn && bn < s.leader_ballot[c2]
     {}
-    // lemma 7: the force case of lemma X && the leader c2 must have received a promise from another leader with a ballot at least as large as c1
+    // lemma 7 (*): the force case of lemma X && the leader c2 must have received a promise from another leader with a ballot at least as large as c1
     lemma ForceCaseLarger(s: TSState, c1: Acceptor, c2: Acceptor) returns (c3 : Acceptor)
     requires type_ok(s) && valid(s) && valid_acceptor(s)
     requires c1 in leaders && c2 in leaders && s.leader_propose[c1] > 0 && s.leader_propose[c2] > 0
@@ -133,7 +133,7 @@ module SupportingLemmas {
         assert  c2 in leaders && s.leader_ballot[c2] < s.leader_ballot[c1];
     }
 
-    // lemma 8: the force case of lemma X && the leader c1 have PMsg(bn1, bn, v) then it must propose the same value as another proposer with a ballot at least bn
+    // lemma 8 (*): the force case of lemma X && the leader c1 have PMsg(bn1, bn, v) then it must propose the same value as another proposer with a ballot at least bn
     lemma ForceCasePropose(s: TSState, c1: Acceptor, bn: int) returns (c2 : Acceptor)
     requires type_ok(s) && valid(s) && valid_acceptor(s)
     requires c1 in leaders && s.leader_propose[c1] > 0 && s.leader_forced[c1] > 0
