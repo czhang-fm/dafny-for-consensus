@@ -41,6 +41,12 @@ module Invariants {
         && (forall c1, c2 :: c1 in leaders && c2 in leaders && s.leader_ballot[c1] == s.leader_ballot[c2] >= 0 ==> c1 == c2 )
         && (forall c :: c in leaders ==> s.leader_ballot[c] < s.ballot)
         // && (forall bn :: 0 <= bn <= s.ballot - 1 ==> s.leader_ballot[s.ballot_mapping[bn]] == bn)
+
+        // the last condition about PMsg and received_promises
+        // && (forall c, a, h, v :: c in leaders && a in acceptors && PMsg(s.leader_ballot[c], h, v) in s.pmsgs[a] && a in s.promise_count[c] ==>
+        //     PMsg(s.leader_ballot[c], h, v) in s.received_promises[c])
+            // (exists m :: m == PMsg(s.leader_ballot[c], h, v) && m in s.received_promises[c] && m.highest == h))
+        // && (forall m, a, c :: c in leaders && a in acceptors && m in s.pmsgs[a] && a in s.promise_count[c] ==> (m in s.received_promises[c]))
     }
 
     /** the list of lemmas to be checked for invariants in all the reachable states 
@@ -65,12 +71,17 @@ module Invariants {
     ensures valid(s')
     {
         assert forall c :: c in leaders ==> (set a | a in acceptors && exists h, v :: PMsg(s.leader_ballot[c], h, v) in s.pmsgs[a]) <= (set a | a in acceptors && exists h, v :: PMsg(s'.leader_ballot[c], h, v) in s'.pmsgs[a]);
+        assert forall c2, h, v :: c2 in leaders && !(PMsg(s.leader_ballot[c], h, v) in s.received_promises[c2]) ==> !(PMsg(s'.leader_ballot[c], h, v) in s'.received_promises[c2]);
     }
 
     lemma Inv_receive_response_1b(s: TSState, s': TSState, c: Acceptor, a: Acceptor, confirmed: int, value: Proposal)
     requires type_ok(s) && type_ok(s') && valid(s) && c in leaders && a in acceptors && confirmed >= 0 && value > 0 && receive_response_1b(s, s', c, a, confirmed, value)
     ensures valid(s')
-    {}
+    {
+        assert PMsg(s'.leader_ballot[c], confirmed, value) in s'.pmsgs[a] && a in s'.promise_count[c];
+        assert PMsg(s'.leader_ballot[c], confirmed, value) in s'.received_promises[c];
+        // assert (forall a, confirmed, value ::)
+    }
 
     lemma Inv_propose_value_2a(s: TSState, s': TSState, c: Acceptor, value: Proposal)
     requires  type_ok(s) && type_ok(s') && valid(s) && c in leaders && value > 0 && propose_value_2a(s, s', c, value)

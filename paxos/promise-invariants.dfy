@@ -27,6 +27,7 @@ module PromiseInvariants {
 
         // This is possible that there may be some PMsg(bn1, _, _) not yet received by c1 ???
         // && (forall c, ballot, v:: c in leaders && s.leader_forced_ballot[c] >= 0 && PMsg(s.leader_ballot[c], ballot, v) in s.received_promises[c] ==> ballot <= s.leader_forced_ballot[c])
+        && (forall c, m :: c in leaders && m in s.received_promises[c] ==> s.leader_forced_ballot[c] >= m.highest) // this time it's successful ???
         && (forall a :: a in acceptors ==> |s.pmsgs[a]| <= s.acceptor_state[a].highest + 1) // this proves that the set of PMsg is bounded for all acceptors
     }
 
@@ -75,8 +76,8 @@ module PromiseInvariants {
         assert s'.received_promises == s.received_promises[c:= s.received_promises[c]+{PMsg(s.leader_ballot[c], confirmed, value)}];
         
         // the following assertion cannot be proved by Dafny as Dafny struggled to find a trigger
-        assert (forall ballot, v :: PMsg(s.leader_ballot[c], ballot, v) in s.received_promises[c] ==> ballot <= s.leader_forced_ballot[c]) ==>
-            (forall ballot, v :: PMsg(s.leader_ballot[c], ballot, v) in s'.received_promises[c] ==> ballot <= s'.leader_forced_ballot[c]); 
+        assert (forall m :: m in s.received_promises[c] ==> m.highest <= s.leader_forced_ballot[c]) ==>
+            (forall m :: m in s'.received_promises[c] ==> m.highest <= s'.leader_forced_ballot[c]); 
     }
 
     lemma Inv_propose_value_2a(s: TSState, s': TSState, c: Acceptor, value: Proposal)
