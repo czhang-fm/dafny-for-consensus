@@ -168,7 +168,7 @@ module Paxos_protocol {
 
   // Before step 2a: message 1b received by a leader (copied from pmsg)
   ghost predicate receive_response_1b(s: TSState, s': TSState, c: Acceptor, a: Acceptor, confirmed: int, value: Proposal)
-  requires type_ok(s) && type_ok(s') && c in leaders && a in acceptors && confirmed >= 0 && value > 0
+  requires type_ok(s) && type_ok(s') && c in leaders && a in acceptors //&& confirmed >= 0 && value > 0
   {
     && PMsg(s.leader_ballot[c], confirmed, value) in s.pmsgs[a]
     && s.leader_decision[c] == 0 // leader c has not yet reached a decision
@@ -177,9 +177,9 @@ module Paxos_protocol {
     && s.leader_ballot[c] >= 0
     && ( 
       // the force case: the acceptor has already confirmed a value with highest greater than the known highest ballot by leader c
-      || (confirmed > s.leader_forced_ballot[c] && s'.leader_forced_ballot == s.leader_forced_ballot[c:= confirmed] && s'.leader_forced == s.leader_forced[c:= value])
+      || (confirmed > s.leader_forced_ballot[c] && (s'.leader_forced_ballot == s.leader_forced_ballot[c:= confirmed] && s'.leader_forced == s.leader_forced[c:= value]))
       // do not update s.leader_forced: accepter may have confirmed a lower ballot, or it has not confirmed yet 
-      || (confirmed <= s.leader_forced_ballot[c] && s'.leader_forced_ballot == s.leader_forced_ballot && s'.leader_forced == s.leader_forced) 
+      || (confirmed <= s.leader_forced_ballot[c] && (s'.leader_forced_ballot == s.leader_forced_ballot && s'.leader_forced == s.leader_forced)) 
     )
     && s'.promise_count == s.promise_count[c:= s.promise_count[c]+{a}] // adding acceptor a to leader c's promise_count
     // all the other state components remain the same

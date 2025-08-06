@@ -9,7 +9,7 @@ module Invariants {
     /** define what a valid state is in a Paxos run
         we will add invariants into this predicate later
      */
-    ghost predicate valid(s: TSState) /// the list of invariants for all states
+    ghost predicate valid(s: TSState) /// the list of invariants for all states 
     requires type_ok(s)
     {
         // the followings are the variants that pick up basic features of the Paxos protocol
@@ -36,6 +36,7 @@ module Invariants {
         && (forall c, a :: c in leaders && a in acceptors && a in s.promise_count[c] ==> 
              (exists h, v :: PMsg(s.leader_ballot[c], h, v) in s.pmsgs[a] && h <= s.leader_forced_ballot[c]))
         && (forall c :: c in leaders ==> (s.leader_forced[c] == 0 <==> s.leader_forced_ballot[c] == -1))
+        // && (forall c :: c in leaders ==> (s.leader_forced[c] > 0 <==> s.leader_forced_ballot[c] >= 0)) // this failed at Inv_init(s)
         // if two leaders have the same non-zero ballot, then they are the same leader, used in the base case of lemma X
         && (forall c1, c2 :: c1 in leaders && c2 in leaders && s.leader_ballot[c1] == s.leader_ballot[c2] >= 0 ==> c1 == c2 )
         && (forall c :: c in leaders ==> s.leader_ballot[c] < s.ballot)

@@ -23,7 +23,11 @@ module AcceptorInvariants {
         && (forall a :: a in acceptors && s.acceptor_state[a].value > 0 ==> 
             (exists c :: c in leaders && s.leader_propose[c] == s.acceptor_state[a].value && s.leader_ballot[c] == s.acceptor_state[a].confirmed))
         && (forall bn1, bn, v, a :: a in acceptors && PMsg(bn1, bn, v) in s.pmsgs[a] && v>0 ==> 
-            (exists c :: c in leaders && s.leader_ballot[c] == bn && s.leader_propose[c] == v)) // invariant for lemma 8
+            (bn < bn1 && exists c :: c in leaders && s.leader_ballot[c] == bn && s.leader_propose[c] == v)) // invariant 1 for lemma 7.5 
+        // && (forall bn, v, a, c :: a in acceptors && c in leaders && PMsg(s.leader_ballot[c], bn, v) in s.pmsgs[a] && a in s.promise_count[c] && v>0 && bn >= 0==>
+        //     bn < s.leader_ballot[c] && bn <= s.leader_forced_ballot[c]) // invariant 2 for lemma 7.5 (bn <= s.leader_forced_ballot[c])
+        && (forall a, c :: a in acceptors && c in leaders && s.leader_forced[c] > 0 && a in s.promise_count[c] ==>
+            (forall bn, v :: PMsg(s.leader_ballot[c], bn, v) in s.pmsgs[a] ==> bn <= s.leader_forced_ballot[c])) // another presentation, or can we prove it as a lemma
     }
 
     /** the list of lemmas to be checked for invariants in all the reachable states 
@@ -51,10 +55,21 @@ module AcceptorInvariants {
     }
 
     lemma Inv_receive_response_1b(s: TSState, s': TSState, c: Acceptor, a: Acceptor, confirmed: int, value: Proposal)
-    requires type_ok(s) && type_ok(s') && valid(s) && c in leaders && a in acceptors && confirmed >= 0 && value > 0 
+    requires type_ok(s) && type_ok(s') && valid(s) && c in leaders && a in acceptors //&& confirmed >= 0 && value > 0 
     requires receive_response_1b(s, s', c, a, confirmed, value) && valid_acceptor(s)
     ensures valid_acceptor(s')
-    {}
+    {
+        assert confirmed <= s.leader_forced_ballot[c] ==> s.leader_forced_ballot == s'.leader_forced_ballot;
+        assert confirmed > s.leader_forced_ballot[c] ==> s'.leader_forced_ballot[c] == confirmed;
+        assert confirmed <= s'.leader_forced_ballot[c];
+        assert PMsg(s'.leader_ballot[c], confirmed, value) in s'.pmsgs[a];
+        assert a in s'.promise_count[c];
+        // assert forall bn, v, a, c :: a in acceptors && c in leaders && PMsg(s.leader_ballot[c], bn, v) in s.pmsgs[a] && a in s.promise_count[c] && v>0 && bn >= 0==>
+        //     bn < s.leader_ballot[c] && bn <= s.leader_forced_ballot[c]; 
+        // assert a in s'.promise_count[c] && confirmed >= 0 && value > 0;
+        // assert forall bn, v, a, c :: a in acceptors && c in leaders && PMsg(s'.leader_ballot[c], bn, v) in s'.pmsgs[a] && a in s'.promise_count[c] && v>0 && bn >= 0==>
+        //     bn < s'.leader_ballot[c] && bn <= s'.leader_forced_ballot[c];
+    }
 
     lemma Inv_propose_value_2a(s: TSState, s': TSState, c: Acceptor, value: Proposal)
     requires  type_ok(s) && type_ok(s') && valid(s) && c in leaders && value > 0 && propose_value_2a(s, s', c, value) && valid_acceptor(s)
