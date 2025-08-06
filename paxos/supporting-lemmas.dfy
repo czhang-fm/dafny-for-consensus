@@ -123,12 +123,15 @@ module SupportingLemmas {
     // we prove the following auxiliary lemmas first before the proof of lemma 8
     // lemma 7.5: the more general case of lemma 8
     lemma ForceCaseLargestBallot(s: TSState, c1: Acceptor) returns (c2 : Acceptor)
-    requires type_ok(s) && valid(s) && valid_acceptor(s)
+    requires type_ok(s) && valid(s) && valid_acceptor(s) && valid_promise(s)
     requires c1 in leaders && s.leader_propose[c1] > 0 && s.leader_forced[c1] > 0
     ensures c2 in leaders && s.leader_ballot[c2] < s.leader_ballot[c1]
-    ensures forall a, bn, v:: a in acceptors && PMsg(s.leader_ballot[c1], bn, v) in s.pmsgs[a] && a in s.promise_count[c1] ==> bn <= s.leader_ballot[c2]
-    ensures s.leader_forced[c1] == s.leader_propose[c2]
-    // {}
+    // ensures forall a, bn, v:: a in acceptors && PMsg(s.leader_ballot[c1], bn, v) in s.pmsgs[a] && a in s.promise_count[c1] ==> bn <= s.leader_ballot[c2]
+    // ensures c2 in leaders && s.leader_forced[c1] == s.leader_propose[c2]
+    {
+        c2 :| exists a, bn, v :: a in acceptors && a in s.promise_count[c1] && 0 <= bn < s.ballot  && PMsg(s.leader_ballot[c1], bn, v) in s.pmsgs[a] && c2 == s.ballot_mapping[bn]; //s.leader_ballot[c2] == bn;
+        assert  c2 in leaders && s.leader_ballot[c2] < s.leader_ballot[c1];
+    }
 
     // lemma 8: the force case of lemma X && the leader c1 have PMsg(bn1, bn, v) then it must propose the same value as another proposer with a ballot at least bn
     lemma ForceCasePropose(s: TSState, c1: Acceptor, bn: int) returns (c2 : Acceptor)

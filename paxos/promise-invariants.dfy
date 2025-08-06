@@ -20,6 +20,8 @@ module PromiseInvariants {
         (exists c :: c in leaders && ballot == s.leader_ballot[c] && v == s.leader_propose[c]))
         && (forall c :: c in leaders && s.leader_forced[c] > 0 ==>
         (exists a, ballot, v :: a in s.promise_count[c] && PMsg(s.leader_ballot[c], ballot, v) in s.pmsgs[a] && ballot == s.leader_forced_ballot[c] && v == s.leader_forced[c]))
+        // && (forall a, c :: a in acceptors && c in leaders && s.leader_forced[c] > 0 && a in s.promise_count[c] ==>
+        //     (forall bn, v :: PMsg(s.leader_ballot[c], bn, v) in s.pmsgs[a] ==> bn <= s.leader_forced_ballot[c])) // another presentation, or can we prove it as a lemma?
     }
 
     /** the list of lemmas to be checked for invariants in all the reachable states 

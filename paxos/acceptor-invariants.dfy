@@ -27,7 +27,7 @@ module AcceptorInvariants {
         // && (forall bn, v, a, c :: a in acceptors && c in leaders && PMsg(s.leader_ballot[c], bn, v) in s.pmsgs[a] && a in s.promise_count[c] && v>0 && bn >= 0==>
         //     bn < s.leader_ballot[c] && bn <= s.leader_forced_ballot[c]) // invariant 2 for lemma 7.5 (bn <= s.leader_forced_ballot[c])
         // && (forall a, c :: a in acceptors && c in leaders && s.leader_forced[c] > 0 && a in s.promise_count[c] ==>
-        //     (forall bn, v :: PMsg(s.leader_ballot[c], bn, v) in s.pmsgs[a] ==> bn <= s.leader_forced_ballot[c])) // another presentation, or can we prove it as a lemma
+        //    (forall bn, v :: PMsg(s.leader_ballot[c], bn, v) in s.pmsgs[a] ==> bn <= s.leader_forced_ballot[c])) // another presentation, or can we prove it as a lemma
     }
 
     /** the list of lemmas to be checked for invariants in all the reachable states 
