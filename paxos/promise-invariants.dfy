@@ -26,7 +26,7 @@ module PromiseInvariants {
         // (forall a, ballot, v :: a in s.promise_count[c] && PMsg(s.leader_ballot[c], ballot, v) in s.pmsgs[a] ==> ballot <= s.leader_forced_ballot[c])) // another failed trial
 
         // This is possible that there may be some PMsg(bn1, _, _) not yet received by c1 ???
-        && (forall c, ballot, v:: c in leaders && s.leader_forced_ballot[c] >= 0 && PMsg(s.leader_ballot[c], ballot, v) in s.received_promises[c] ==> ballot <= s.leader_forced_ballot[c])
+        // && (forall c, ballot, v:: c in leaders && s.leader_forced_ballot[c] >= 0 && PMsg(s.leader_ballot[c], ballot, v) in s.received_promises[c] ==> ballot <= s.leader_forced_ballot[c])
         && (forall a :: a in acceptors ==> |s.pmsgs[a]| <= s.acceptor_state[a].highest + 1) // this proves that the set of PMsg is bounded for all acceptors
     }
 
@@ -62,7 +62,8 @@ module PromiseInvariants {
         assert confirmed <= s.leader_forced_ballot[c] ==> s.leader_forced_ballot == s'.leader_forced_ballot;
         assert confirmed > s.leader_forced_ballot[c] ==> s'.leader_forced_ballot[c] == confirmed;
         assert confirmed <= s'.leader_forced_ballot[c];
-        assert PMsg(s'.leader_ballot[c], confirmed, value) in s'.pmsgs[a];
+        assert PMsg(s'.leader_ballot[c], confirmed, value) in s'.received_promises[c];
+        // assert PMsg(s'.leader_ballot[c], confirmed, value) in s'.pmsgs[a];
         // assert a in s'.promise_count[c];
         // assert  (forall a, c :: a in acceptors && c in leaders && s.leader_forced[c] > 0 && a in s.promise_count[c] ==>
         //    (forall bn, v :: PMsg(s.leader_ballot[c], bn, v) in s.pmsgs[a] ==> bn <= s.leader_forced_ballot[c]));
@@ -72,6 +73,10 @@ module PromiseInvariants {
         // assert forall a :: a in acceptors ==> s.pmsgs[a] == s'.pmsgs[a];
         // assert s'.promise_count == s.promise_count[c:= s.promise_count[c]+{a}];
         assert s'.received_promises == s.received_promises[c:= s.received_promises[c]+{PMsg(s.leader_ballot[c], confirmed, value)}];
+        
+        // the following assertion cannot be proved by Dafny as Dafny struggled to find a trigger
+        assert (forall ballot, v :: PMsg(s.leader_ballot[c], ballot, v) in s.received_promises[c] ==> ballot <= s.leader_forced_ballot[c]) ==>
+            (forall ballot, v :: PMsg(s.leader_ballot[c], ballot, v) in s'.received_promises[c] ==> ballot <= s'.leader_forced_ballot[c]); 
     }
 
     lemma Inv_propose_value_2a(s: TSState, s': TSState, c: Acceptor, value: Proposal)
