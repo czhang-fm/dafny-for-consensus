@@ -57,7 +57,9 @@ module PromiseInvariants {
     lemma Inv_propose_value_2a(s: TSState, s': TSState, c: Acceptor, value: Proposal)
     requires  type_ok(s) && type_ok(s') && valid(s) && c in leaders && value > 0 && propose_value_2a(s, s', c, value) && valid_promise(s)
     ensures valid_promise(s')
-    {}
+    {
+        assert s'.leader_forced[c] > 0 ==> s'.leader_propose[c] == s'.leader_forced[c];
+    }
 
     lemma Inv_confirm_ballot_2b(s: TSState, s': TSState, c: Acceptor, a: Acceptor, value: Proposal)
     requires type_ok(s) && type_ok(s') && valid(s) && c in leaders && a in acceptors && value > 0
