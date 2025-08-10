@@ -21,17 +21,14 @@ module Invariants {
         && (forall c :: c in leaders && s.leader_propose[c] > 0 ==> s.decision_count[c] <= (set a | a in acceptors && CMsg(s.leader_ballot[c], s.leader_propose[c]) in s.cmsgs[a]))
         //
         && (forall c :: c in leaders ==> s.promise_count[c] <= acceptors)
-        // && (forall a, c :: a in acceptors && c in leaders && a in s.promise_count[c] ==> (exists h, v :: PMsg(s.leader_ballot[c], h, v) in s.pmsgs[a])) // before
         && (forall a, c :: a in acceptors && c in leaders && a in s.promise_count[c] ==> 
             (exists m :: m in s.pmsgs[a] && m.ballot == s.leader_ballot[c] && m in s.received_promises[c])) // updated
         && (forall a :: a in acceptors ==> s.acceptor_state[a].value >= 0)
         && (forall a :: a in acceptors ==> (s.acceptor_state[a].value > 0 ==> s.acceptor_state[a].highest_ballot >=0 && s.acceptor_state[a].confirmed_ballot >= -1))
         && (forall a :: a in acceptors ==> (s.acceptor_state[a].value > 0 <==> s.acceptor_state[a].confirmed_ballot >= 0))
-        // && (forall a, bn, ballot, value :: a in acceptors && (PMsg(bn, ballot, value) in s.pmsgs[a]) ==> (ballot == -1 <==> value == 0)) // before
         && (forall a, m :: a in acceptors && (m in s.pmsgs[a]) ==> (m.confirmed_ballot == -1 <==> m.value == 0))
         && (forall a :: a in acceptors && s.acceptor_state[a].value == 0 ==> s.cmsgs[a] == {})
         && (forall a :: a in acceptors ==> s.acceptor_state[a].highest_ballot >= s.acceptor_state[a].confirmed_ballot)
-        // && (forall a, bn, c_ballot, value  :: a in acceptors && (PMsg(bn, c_ballot, value) in s.pmsgs[a]) ==> bn <= s.acceptor_state[a].highest_ballot && c_ballot >= -1) // before
         && (forall a, m  :: a in acceptors && m in s.pmsgs[a] ==> m.ballot <= s.acceptor_state[a].highest_ballot && m.confirmed_ballot >= -1)
         && (forall a, bn, bn', value :: a in acceptors && (CMsg(bn, value) in s.cmsgs[a]) && (PMsg(bn', -1, 0) in s.pmsgs[a]) ==> bn >= bn') //* invariant W
 
@@ -41,21 +38,13 @@ module Invariants {
             || s.leader_forced[c] == 0 
             || (s.leader_forced[c] > 0 && s.leader_propose[c] == s.leader_forced[c])
         )) 
-        && (forall c, m :: c in leaders &&  m in s.received_promises[c] ==> //&& a in acceptors && a in s.promise_count[c] ==> forall m :: m in s.pmsgs[a] &&
+        && (forall c, m :: c in leaders &&  m in s.received_promises[c] ==> 
              (m.confirmed_ballot <= s.leader_forced_ballot[c])) // wait, ok
-        // //     (exists h, v :: PMsg(s.leader_ballot[c], h, v) in s.pmsgs[a] && h <= s.leader_forced_ballot[c]))
         && (forall c :: c in leaders ==> (s.leader_forced[c] == 0 <==> s.leader_forced_ballot[c] == -1))
-        // // && (forall c :: c in leaders ==> (s.leader_forced[c] > 0 <==> s.leader_forced_ballot[c] >= 0)) // this failed at Inv_init(s)
-        // // if two leaders have the same non-zero ballot, then they are the same leader, used in the base case of lemma X
+        // if two leaders have the same non-zero ballot, then they are the same leader, used in the base case of lemma X
         && (forall c1, c2 :: c1 in leaders && c2 in leaders && s.leader_ballot[c1] == s.leader_ballot[c2] >= 0 ==> c1 == c2 )
         && (forall c :: c in leaders ==> s.leader_ballot[c] < s.ballot)
-        // // && (forall bn :: 0 <= bn <= s.ballot - 1 ==> s.leader_ballot[s.ballot_mapping[bn]] == bn)
 
-        // // the last condition about PMsg and received_promises
-        // // && (forall c, a, h, v :: c in leaders && a in acceptors && PMsg(s.leader_ballot[c], h, v) in s.pmsgs[a] && a in s.promise_count[c] ==>
-        // //     PMsg(s.leader_ballot[c], h, v) in s.received_promises[c])
-        //     // (exists m :: m == PMsg(s.leader_ballot[c], h, v) && m in s.received_promises[c] && m.highest == h))
-        // // && (forall m, a, c :: c in leaders && a in acceptors && m in s.pmsgs[a] && a in s.promise_count[c] ==> (m in s.received_promises[c]))
     }
 
     /** the list of lemmas to be checked for invariants in all the reachable states 
@@ -90,7 +79,6 @@ module Invariants {
         assert m in s'.pmsgs[a] && a in s'.promise_count[c];
         assert m in s'.received_promises[c];
         assert s.leader_propose[c] == s'.leader_propose[c] == 0;
-        // assert (forall a, confirmed, value ::)
     }
 
     lemma Inv_propose_value_2a(s: TSState, s': TSState, c: Acceptor, value: Proposal)

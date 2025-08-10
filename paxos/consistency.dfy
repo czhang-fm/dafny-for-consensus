@@ -46,7 +46,7 @@ module Consistency {
     lemma Consistency(s: TSState, c1: Acceptor, c2: Acceptor)
     requires type_ok(s) && valid(s) && valid_promise(s) && valid_acceptor(s)
     requires c1 in leaders && c2 in leaders && (s.leader_decision[c1] > 0) && (s.leader_decision[c2] > 0)
-    // ensures s.leader_decision[c1] == s.leader_decision[c2]
+    ensures s.leader_decision[c1] == s.leader_decision[c2]
     {
         assert s.leader_propose[c1] == s.leader_decision[c1] > 0; 
         assert s.leader_propose[c2] == s.leader_decision[c2] > 0;

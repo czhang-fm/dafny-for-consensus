@@ -26,10 +26,7 @@ module AcceptorInvariants {
             (bn < bn1 && exists c :: c in leaders && s.leader_ballot[c] == bn && s.leader_propose[c] == v)) // invariant 1 for lemma 7.5 
         // && (forall bn, v, a, c :: a in acceptors && c in leaders && PMsg(s.leader_ballot[c], bn, v) in s.pmsgs[a] && a in s.promise_count[c] && v>0 && bn >= 0==>
         //     bn < s.leader_ballot[c] && bn <= s.leader_forced_ballot[c]) // invariant 2 for lemma 7.5 (bn <= s.leader_forced_ballot[c])
-        // && (forall a, c :: a in acceptors && c in leaders && s.leader_forced[c] > 0 && a in s.promise_count[c] ==>
-        //    (forall bn, v :: PMsg(s.leader_ballot[c], bn, v) in s.pmsgs[a] ==> bn <= s.leader_forced_ballot[c])) // another presentation, or can we prove it as a lemma
-        // Dafny cannot figure out the following set is finite : 
-        // && (forall c, bn :: c in leaders && bn in (set bn | exists a, bn, v :: a in acceptors && a in s.promise_count[c] && PMsg(s.leader_ballot[c], bn, v) in s.pmsgs[a]) ==> bn <= s.leader_forced_ballot[c])
+
         && (forall m, a :: a in acceptors ==> (m in s.pmsgs[a] <==> PMsg(m.ballot, m.confirmed_ballot, m.value) in s.pmsgs[a]))
         && (forall m, c :: c in leaders && m in s.received_promises[c] ==> m.ballot >= 0)
         && (forall m, c :: c in leaders && m in s.received_promises[c] && s.leader_ballot[c] >= 0 ==> (m.ballot == s.leader_ballot[c])) 

@@ -20,14 +20,9 @@ module PromiseInvariants {
         (exists c :: c in leaders && ballot == s.leader_ballot[c] && v == s.leader_propose[c]))
         && (forall c :: c in leaders && s.leader_forced[c] > 0 ==> // invariant V
         (exists a, ballot, v :: a in s.promise_count[c] && PMsg(s.leader_ballot[c], ballot, v) in s.pmsgs[a] && ballot == s.leader_forced_ballot[c] && v == s.leader_forced[c]))
-        // && (forall a, c :: a in acceptors && c in leaders && s.leader_forced[c] > 0 && a in s.promise_count[c] ==>
-        //     (forall bn, v :: PMsg(s.leader_ballot[c], bn, v) in s.pmsgs[a] ==> bn <= s.leader_forced_ballot[c])) // another presentation, or can we prove it as a lemma?
-        // && (forall c :: c in leaders && s.leader_forced_ballot[c] >= 0 ==>
-        // (forall a, ballot, v :: a in s.promise_count[c] && PMsg(s.leader_ballot[c], ballot, v) in s.pmsgs[a] ==> ballot <= s.leader_forced_ballot[c])) // another failed trial
 
         // This is possible that there may be some PMsg(bn1, _, _) not yet received by c1 ???
-        // && (forall c, ballot, v:: c in leaders && s.leader_forced_ballot[c] >= 0 && PMsg(s.leader_ballot[c], ballot, v) in s.received_promises[c] ==> ballot <= s.leader_forced_ballot[c])
-        && (forall c, m :: c in leaders && m in s.received_promises[c] ==> s.leader_forced_ballot[c] >= m.confirmed_ballot) // this time it's successful ???
+        && (forall c, m :: c in leaders && m in s.received_promises[c] ==> s.leader_forced_ballot[c] >= m.confirmed_ballot) 
         && (forall a :: a in acceptors ==> |s.pmsgs[a]| <= s.acceptor_state[a].highest_ballot + 1) // this proves that the set of PMsg is bounded for all acceptors
         && (forall c :: c in leaders && s.leader_forced[c] > 0 ==> // this is the same as invariant in the above
             (exists m :: m in s.received_promises[c] && m.confirmed_ballot == s.leader_forced_ballot[c] && m.value == s.leader_forced[c]))
